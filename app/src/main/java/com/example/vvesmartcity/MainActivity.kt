@@ -2,6 +2,8 @@ package com.example.vvesmartcity
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
@@ -64,7 +66,9 @@ import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
 import com.example.vvesmartcity.ui.theme.VvESmartCityTheme
 import com.example.vvesmartcity.supermarket.AddEditProductScreen
+import com.example.vvesmartcity.supermarket.PhotoShoppingScreen
 import com.example.vvesmartcity.supermarket.ProductPurchaseScreen
+import com.example.vvesmartcity.supermarket.RealScanCodeScreen
 import com.example.vvesmartcity.supermarket.ScanCodeScreen
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
 import com.example.vvesmartcity.supermarket.VideoMonitorScreen
@@ -95,6 +99,7 @@ sealed class AppPage {
     data class AddEditProduct(val productId: String?) : AppPage()
     object VideoMonitor : AppPage()
     object ScanCode : AppPage()
+    object PhotoShopping : AppPage()
     object WarningMain : AppPage()
     object AllWarnings : AppPage()
     data class AddEditWarning(val warningId: String?) : AppPage()
@@ -121,6 +126,23 @@ fun SmartCityApp() {
     var currentUser by rememberSaveable { mutableStateOf<User?>(null) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentPage by remember { mutableStateOf<AppPage>(AppPage.Home) }
+    var pageHistory by remember { mutableStateOf(listOf<AppPage>(AppPage.Home)) }
+
+    fun navigateTo(page: AppPage) {
+        currentPage = page
+        pageHistory = pageHistory + page
+    }
+
+    fun goBack() {
+        if (pageHistory.size > 1) {
+            pageHistory = pageHistory.dropLast(1)
+            currentPage = pageHistory.last()
+        }
+    }
+
+    BackHandler(enabled = currentPage !is AppPage.Home && currentPage !is AppPage.Profile) {
+        goBack()
+    }
 
     if (!isLoggedIn) {
         LoginScreen(
@@ -128,6 +150,7 @@ fun SmartCityApp() {
                 currentUser = user
                 isLoggedIn = true
                 currentPage = AppPage.Home
+                pageHistory = listOf(AppPage.Home)
             }
         )
         return
@@ -135,82 +158,88 @@ fun SmartCityApp() {
 
     when (currentPage) {
         is AppPage.Weather -> {
-            WeatherScreen(onBack = { currentPage = AppPage.Home })
+            WeatherScreen(onBack = { goBack() })
         }
         is AppPage.SupermarketMain -> {
             SupermarketMainScreen(
-                onBack = { currentPage = AppPage.Home },
-                onProductClick = { productId -> currentPage = AppPage.ProductPurchase(productId) },
-                onAddProduct = { currentPage = AppPage.AddEditProduct(null) },
-                onScanCode = { currentPage = AppPage.ScanCode },
-                onVideoMonitor = { currentPage = AppPage.VideoMonitor }
+                onBack = { goBack() },
+                onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) },
+                onAddProduct = { navigateTo(AppPage.AddEditProduct(null)) },
+                onScanCode = { navigateTo(AppPage.ScanCode) },
+                onVideoMonitor = { navigateTo(AppPage.VideoMonitor) },
+                onPhotoShopping = { navigateTo(AppPage.PhotoShopping) }
             )
         }
         is AppPage.ScanCode -> {
-            ScanCodeScreen(
-                onBack = { currentPage = AppPage.SupermarketMain },
-                onScanResult = { productId -> currentPage = AppPage.ProductPurchase(productId) }
+            RealScanCodeScreen(
+                onBack = { goBack() },
+                onScanResult = { barcode -> navigateTo(AppPage.ProductPurchase(barcode)) }
+            )
+        }
+        is AppPage.PhotoShopping -> {
+            PhotoShoppingScreen(
+                onBack = { goBack() }
             )
         }
         is AppPage.WarningMain -> {
             WarningMainScreen(
-                onBack = { currentPage = AppPage.Home },
-                onViewAll = { currentPage = AppPage.AllWarnings }
+                onBack = { goBack() },
+                onViewAll = { navigateTo(AppPage.AllWarnings) }
             )
         }
         is AppPage.AllWarnings -> {
             AllWarningsScreen(
-                onBack = { currentPage = AppPage.WarningMain },
-                onAddWarning = { currentPage = AppPage.AddEditWarning(null) },
-                onEditWarning = { id -> currentPage = AppPage.AddEditWarning(id) }
+                onBack = { goBack() },
+                onAddWarning = { navigateTo(AppPage.AddEditWarning(null)) },
+                onEditWarning = { id -> navigateTo(AppPage.AddEditWarning(id)) }
             )
         }
         is AppPage.AddEditWarning -> {
             val warningPage = currentPage as AppPage.AddEditWarning
             AddEditWarningScreen(
                 warningId = warningPage.warningId,
-                onBack = { currentPage = AppPage.AllWarnings },
-                onSaveSuccess = { currentPage = AppPage.AllWarnings }
+                onBack = { goBack() },
+                onSaveSuccess = { goBack() }
             )
         }
         is AppPage.ProductPurchase -> {
             val purchasePage = currentPage as AppPage.ProductPurchase
             ProductPurchaseScreen(
                 productId = purchasePage.productId,
-                onBack = { currentPage = AppPage.SupermarketMain },
-                onPurchaseSuccess = { currentPage = AppPage.SupermarketMain }
+                onBack = { goBack() },
+                onPurchaseSuccess = { goBack() }
             )
         }
         is AppPage.AddEditProduct -> {
             val editPage = currentPage as AppPage.AddEditProduct
             AddEditProductScreen(
                 productId = editPage.productId,
-                onBack = { currentPage = AppPage.SupermarketMain },
-                onSaveSuccess = { currentPage = AppPage.SupermarketMain }
+                onBack = { goBack() },
+                onSaveSuccess = { goBack() }
             )
         }
         is AppPage.VideoMonitor -> {
-            VideoMonitorScreen(onBack = { currentPage = AppPage.SupermarketMain })
+            VideoMonitorScreen(onBack = { goBack() })
         }
         is AppPage.FarmMain -> {
             FarmMainScreen(
-                onBack = { currentPage = AppPage.Home },
-                onViewAll = { currentPage = AppPage.AllFarmRecords }
+                onBack = { goBack() },
+                onViewAll = { navigateTo(AppPage.AllFarmRecords) }
             )
         }
         is AppPage.AllFarmRecords -> {
             AllFarmRecordsScreen(
-                onBack = { currentPage = AppPage.FarmMain },
-                onAddRecord = { currentPage = AppPage.AddEditRecord(null) },
-                onEditRecord = { id -> currentPage = AppPage.AddEditRecord(id) }
+                onBack = { goBack() },
+                onAddRecord = { navigateTo(AppPage.AddEditRecord(null)) },
+                onEditRecord = { id -> navigateTo(AppPage.AddEditRecord(id)) }
             )
         }
         is AppPage.AddEditRecord -> {
             val recordPage = currentPage as AppPage.AddEditRecord
             AddEditRecordScreen(
                 recordId = recordPage.recordId,
-                onBack = { currentPage = AppPage.AllFarmRecords },
-                onSaveSuccess = { currentPage = AppPage.AllFarmRecords }
+                onBack = { goBack() },
+                onSaveSuccess = { goBack() }
             )
         }
         else -> {
@@ -219,7 +248,7 @@ fun SmartCityApp() {
             ) { innerPadding ->
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (selectedTab) {
-                        0 -> SmartCityHomeScreen(onModuleClick = { page -> currentPage = page })
+                        0 -> SmartCityHomeScreen(onModuleClick = { page -> navigateTo(page) })
                         1 -> ProfileScreen(user = currentUser)
                     }
                 }

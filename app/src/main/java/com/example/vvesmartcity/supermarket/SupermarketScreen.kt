@@ -58,7 +58,8 @@ fun SupermarketMainScreen(
     onProductClick: (String) -> Unit,
     onAddProduct: () -> Unit,
     onScanCode: () -> Unit,
-    onVideoMonitor: () -> Unit
+    onVideoMonitor: () -> Unit,
+    onPhotoShopping: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var products by remember { mutableStateOf(ProductDataSource.searchProducts("")) }
@@ -167,6 +168,14 @@ fun SupermarketMainScreen(
                     modifier = Modifier.weight(1f).height(40.dp)
                 ) {
                     Text("视频监控", fontSize = 13.sp)
+                }
+                Button(
+                    onClick = onPhotoShopping,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(40.dp)
+                ) {
+                    Text("拍照购物", fontSize = 13.sp)
                 }
             }
 
