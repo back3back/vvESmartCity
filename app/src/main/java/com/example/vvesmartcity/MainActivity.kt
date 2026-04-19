@@ -68,6 +68,8 @@ import com.example.vvesmartcity.supermarket.ProductPurchaseScreen
 import com.example.vvesmartcity.supermarket.ScanCodeScreen
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
 import com.example.vvesmartcity.supermarket.VideoMonitorScreen
+import com.example.vvesmartcity.auth.LoginScreen
+import com.example.vvesmartcity.auth.User
 import com.example.vvesmartcity.farm.AddEditRecordScreen
 import com.example.vvesmartcity.farm.AllFarmRecordsScreen
 import com.example.vvesmartcity.farm.FarmMainScreen
@@ -115,8 +117,21 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SmartCityApp() {
+    var isLoggedIn by rememberSaveable { mutableStateOf(false) }
+    var currentUser by rememberSaveable { mutableStateOf<User?>(null) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentPage by remember { mutableStateOf<AppPage>(AppPage.Home) }
+
+    if (!isLoggedIn) {
+        LoginScreen(
+            onLoginSuccess = { user ->
+                currentUser = user
+                isLoggedIn = true
+                currentPage = AppPage.Home
+            }
+        )
+        return
+    }
 
     when (currentPage) {
         is AppPage.Weather -> {
@@ -205,7 +220,7 @@ fun SmartCityApp() {
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (selectedTab) {
                         0 -> SmartCityHomeScreen(onModuleClick = { page -> currentPage = page })
-                        1 -> ProfileScreen()
+                        1 -> ProfileScreen(user = currentUser)
                     }
                 }
             }
@@ -455,7 +470,7 @@ fun ModuleCard(module: ModuleItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(user: User?) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -475,15 +490,15 @@ fun ProfileScreen() {
                 .padding(horizontal = 24.dp)
                 .padding(top = 48.dp, bottom = 24.dp)
         ) {
-            ProfileHeader()
+            ProfileHeader(user = user)
             Spacer(modifier = Modifier.height(32.dp))
-            ProfileInfoCard()
+            ProfileInfoCard(user = user)
         }
     }
 }
 
 @Composable
-fun ProfileHeader() {
+fun ProfileHeader(user: User?) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
@@ -516,14 +531,14 @@ fun ProfileHeader() {
 
         Column {
             Text(
-                text = "管理员",
+                text = user?.displayName ?: "管理员",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1A237E)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "admin@smartcity.com",
+                text = user?.username ?: "admin@smartcity.com",
                 fontSize = 13.sp,
                 color = Color(0xFF78909C)
             )
@@ -532,7 +547,7 @@ fun ProfileHeader() {
 }
 
 @Composable
-fun ProfileInfoCard() {
+fun ProfileInfoCard(user: User?) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -551,9 +566,9 @@ fun ProfileInfoCard() {
                 color = Color(0xFF263238)
             )
             Spacer(modifier = Modifier.height(16.dp))
-            ProfileInfoRow("用户名", "Admin")
+            ProfileInfoRow("用户名", user?.username ?: "Admin")
             Spacer(modifier = Modifier.height(12.dp))
-            ProfileInfoRow("角色", "系统管理员")
+            ProfileInfoRow("角色", user?.role ?: "系统管理员")
             Spacer(modifier = Modifier.height(12.dp))
             ProfileInfoRow("城市", "智慧城市")
             Spacer(modifier = Modifier.height(12.dp))
