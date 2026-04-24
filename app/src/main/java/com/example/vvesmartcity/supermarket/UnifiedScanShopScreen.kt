@@ -3,6 +3,8 @@ package com.example.vvesmartcity.supermarket
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -42,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.common.InputImage
 
 @Composable
 fun UnifiedScanShopScreen(
@@ -49,13 +56,50 @@ fun UnifiedScanShopScreen(
     onProductScanned: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var showInputDialog by remember { mutableStateOf(false) }
+    var scannedBarcode by remember { mutableStateOf<String?>(null) }
+    var showProductDialog by remember { mutableStateOf(false) }
+    var showManualInputDialog by remember { mutableStateOf(false) }
+    var scannedProduct by remember { mutableStateOf<BarcodeProduct?>(null) }
+    var isProcessing by remember { mutableStateOf(false) }
+
+    fun handleBarcodeResult(barcode: String?) {
+        if (barcode != null) {
+            scannedBarcode = barcode
+            val product = BarcodeProductDatabase.findByBarcode(barcode)
+            if (product != null) {
+                scannedProduct = product
+                showProductDialog = true
+            } else {
+                Toast.makeText(context, "未找到条码: $barcode", Toast.LENGTH_SHORT).show()
+                showManualInputDialog = true
+            }
+        } else {
+            Toast.makeText(context, "未能识别条形码，请手动输入", Toast.LENGTH_SHORT).show()
+            showManualInputDialog = true
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         if (bitmap != null) {
-            showInputDialog = true
+            isProcessing = true
+            scanBarcodeFromBitmap(bitmap) { barcode ->
+                isProcessing = false
+                handleBarcodeResult(barcode)
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            isProcessing = true
+            scanBarcodeFromUri(context, uri) { barcode ->
+                isProcessing = false
+                handleBarcodeResult(barcode)
+            }
         }
     }
 
@@ -104,18 +148,26 @@ fun UnifiedScanShopScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "📷",
-                fontSize = 64.sp
-            )
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(60.dp))
+                    .background(Color(0xFF43A047).copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📷",
+                    fontSize = 56.sp
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "拍照录入商品",
-                fontSize = 20.sp,
+                text = "扫描条形码",
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF263238)
             )
@@ -123,12 +175,44 @@ fun UnifiedScanShopScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "拍摄商品照片，手动输入商品信息",
+                text = "拍照或从相册选择条形码图片",
                 fontSize = 14.sp,
                 color = Color(0xFF78909C)
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "支持识别的条形码类型",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF263238)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        BarcodeTypeChip("EAN-13")
+                        BarcodeTypeChip("UPC-A")
+                        BarcodeTypeChip("Code128")
+                        BarcodeTypeChip("QR码")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
@@ -142,22 +226,122 @@ fun UnifiedScanShopScreen(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(56.dp),
+                enabled = !isProcessing
+            ) {
+                if (isProcessing) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("识别中...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                } else {
+                    Text(
+                        text = "📷 拍照扫描条形码",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { galleryLauncher.launch("image/*") },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = !isProcessing
             ) {
                 Text(
-                    text = "打开相机拍照",
+                    text = "🖼️ 从相册选择图片",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = { showManualInputDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF78909C)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(
+                    text = "手动输入条码",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "💡", fontSize = 24.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "使用提示",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF5D4037)
+                        )
+                        Text(
+                            text = "可从网上下载条形码图片进行测试",
+                            fontSize = 12.sp,
+                            color = Color(0xFF795548)
+                        )
+                    }
+                }
+            }
         }
     }
 
-    if (showInputDialog) {
-        ProductInputDialog(
-            onDismiss = {
-                showInputDialog = false
+    if (showProductDialog && scannedProduct != null) {
+        ScannedProductDialog(
+            product = scannedProduct!!,
+            barcode = scannedBarcode ?: "",
+            onDismiss = { showProductDialog = false },
+            onConfirm = { quantity ->
+                val newProduct = Product(
+                    id = scannedBarcode ?: "P${System.currentTimeMillis()}",
+                    name = scannedProduct!!.name,
+                    imageResId = null,
+                    quantity = quantity,
+                    unitPrice = scannedProduct!!.price,
+                    discountedPrice = scannedProduct!!.price
+                )
+                ProductDataSource.addProduct(newProduct)
+                showProductDialog = false
+                Toast.makeText(context, "已添加: ${scannedProduct!!.name}", Toast.LENGTH_SHORT).show()
+                onProductScanned(newProduct.id)
             },
+            onManualEdit = {
+                showProductDialog = false
+                showManualInputDialog = true
+            }
+        )
+    }
+
+    if (showManualInputDialog) {
+        ManualProductInputDialog(
+            initialBarcode = scannedBarcode ?: "",
+            onDismiss = { showManualInputDialog = false },
             onConfirm = { productName, productPrice, productBarcode ->
                 val newProduct = Product(
                     id = productBarcode.ifBlank { "P${System.currentTimeMillis()}" },
@@ -168,7 +352,8 @@ fun UnifiedScanShopScreen(
                     discountedPrice = productPrice.toFloat()
                 )
                 ProductDataSource.addProduct(newProduct)
-                showInputDialog = false
+                showManualInputDialog = false
+                Toast.makeText(context, "已添加: $productName", Toast.LENGTH_SHORT).show()
                 onProductScanned(newProduct.id)
             }
         )
@@ -176,19 +361,152 @@ fun UnifiedScanShopScreen(
 }
 
 @Composable
-fun ProductInputDialog(
+fun BarcodeTypeChip(type: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFE8F5E9))
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = type,
+            fontSize = 11.sp,
+            color = Color(0xFF2E7D32),
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun ScannedProductDialog(
+    product: BarcodeProduct,
+    barcode: String,
     onDismiss: () -> Unit,
-    onConfirm: (String, Double, String) -> Unit
+    onConfirm: (Int) -> Unit,
+    onManualEdit: () -> Unit
 ) {
-    var productName by remember { mutableStateOf("") }
-    var productPrice by remember { mutableStateOf("") }
-    var productBarcode by remember { mutableStateOf("") }
+    var quantity by remember { mutableStateOf("1") }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "设置商品信息",
+                text = "✅ 识别成功",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF2E7D32)
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            text = product.name,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF263238)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row {
+                            Text(
+                                text = "品牌: ${product.brand}",
+                                fontSize = 13.sp,
+                                color = Color(0xFF78909C)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = "分类: ${product.category}",
+                                fontSize = 13.sp,
+                                color = Color(0xFF78909C)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "条码: $barcode",
+                            fontSize = 12.sp,
+                            color = Color(0xFF90A4AE)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "¥${String.format("%.2f", product.price)}",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE53935)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = { 
+                        if (it.all { c -> c.isDigit() }) {
+                            quantity = it
+                        }
+                    },
+                    label = { Text("入库数量") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val qty = quantity.toIntOrNull() ?: 1
+                    if (qty > 0) {
+                        onConfirm(qty)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047))
+            ) {
+                Text("确认入库")
+            }
+        },
+        dismissButton = {
+            Row {
+                Button(
+                    onClick = onManualEdit,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF78909C))
+                ) {
+                    Text("修改信息")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0))
+                ) {
+                    Text("取消", color = Color(0xFF616161))
+                }
+            }
+        }
+    )
+}
+
+@Composable
+fun ManualProductInputDialog(
+    initialBarcode: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String, Double, String) -> Unit
+) {
+    var productName by remember { mutableStateOf("") }
+    var productPrice by remember { mutableStateOf("") }
+    var productBarcode by remember { mutableStateOf(initialBarcode) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = if (initialBarcode.isNotEmpty()) "手动录入商品" else "添加新商品",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -202,7 +520,7 @@ fun ProductInputDialog(
                 OutlinedTextField(
                     value = productBarcode,
                     onValueChange = { productBarcode = it },
-                    label = { Text("条码（选填）") },
+                    label = { Text("条码") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -245,4 +563,38 @@ fun ProductInputDialog(
             }
         }
     )
+}
+
+private fun scanBarcodeFromBitmap(bitmap: Bitmap, onResult: (String?) -> Unit) {
+    val image = InputImage.fromBitmap(bitmap, 0)
+    val scanner = BarcodeScanning.getClient()
+    
+    scanner.process(image)
+        .addOnSuccessListener { barcodes ->
+            if (barcodes.isNotEmpty()) {
+                onResult(barcodes[0].rawValue)
+            } else {
+                onResult(null)
+            }
+        }
+        .addOnFailureListener {
+            onResult(null)
+        }
+}
+
+private fun scanBarcodeFromUri(context: android.content.Context, uri: Uri, onResult: (String?) -> Unit) {
+    try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream?.close()
+        
+        if (bitmap != null) {
+            scanBarcodeFromBitmap(bitmap, onResult)
+        } else {
+            onResult(null)
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        onResult(null)
+    }
 }
