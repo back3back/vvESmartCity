@@ -1,6 +1,9 @@
 package com.example.vvesmartcity.warning
 
+import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
+import com.example.vvesmartcity.data.DataPersistenceManager
+import com.example.vvesmartcity.data.WarningData
 import java.util.UUID
 
 enum class WarningType(val label: String, val icon: String) {
@@ -27,9 +30,55 @@ data class WarningRecord(
 
 object WarningDataSource {
     private val warnings = mutableStateListOf<WarningRecord>()
+    private var isInitialized = false
 
-    init {
-        initMockData()
+    fun init(context: Context) {
+        if (isInitialized) return
+        
+        val savedWarnings = DataPersistenceManager.loadWarnings()
+        if (savedWarnings.isNotEmpty()) {
+            savedWarnings.forEach { warningData ->
+                val warningType = when (warningData.type) {
+                    "FLAME" -> WarningType.FLAME
+                    "SMOKE" -> WarningType.SMOKE
+                    "MOTION" -> WarningType.MOTION
+                    else -> WarningType.FLAME
+                }
+                val warningLevel = when (warningData.level) {
+                    "HIGH" -> WarningLevel.HIGH
+                    "MEDIUM" -> WarningLevel.MEDIUM
+                    "LOW" -> WarningLevel.LOW
+                    else -> WarningLevel.LOW
+                }
+                warnings.add(WarningRecord(
+                    id = warningData.id,
+                    type = warningType,
+                    level = warningLevel,
+                    location = warningData.location,
+                    description = warningData.description,
+                    timestamp = warningData.timestamp,
+                    isHandled = warningData.isHandled
+                ))
+            }
+        } else {
+            initMockData()
+        }
+        isInitialized = true
+    }
+    
+    private fun saveWarnings() {
+        val warningDataList = warnings.map { warning ->
+            WarningData(
+                id = warning.id,
+                type = warning.type.name,
+                level = warning.level.name,
+                location = warning.location,
+                description = warning.description,
+                timestamp = warning.timestamp,
+                isHandled = warning.isHandled
+            )
+        }
+        DataPersistenceManager.saveWarnings(warningDataList)
     }
 
     fun getCurrentWarnings(): List<WarningRecord> {
@@ -49,23 +98,27 @@ object WarningDataSource {
 
     fun addWarning(warning: WarningRecord) {
         warnings.add(0, warning)
+        saveWarnings()
     }
 
     fun updateWarning(warning: WarningRecord) {
         val index = warnings.indexOfFirst { it.id == warning.id }
         if (index >= 0) {
             warnings[index] = warning
+            saveWarnings()
         }
     }
 
     fun deleteWarning(id: String) {
         warnings.removeAll { it.id == id }
+        saveWarnings()
     }
 
     fun markAsHandled(id: String) {
         val index = warnings.indexOfFirst { it.id == id }
         if (index >= 0) {
             warnings[index] = warnings[index].copy(isHandled = true)
+            saveWarnings()
         }
     }
 
@@ -129,5 +182,6 @@ object WarningDataSource {
                 )
             )
         )
+        saveWarnings()
     }
 }

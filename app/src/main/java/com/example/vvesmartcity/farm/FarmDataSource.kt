@@ -1,6 +1,9 @@
 package com.example.vvesmartcity.farm
 
+import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
+import com.example.vvesmartcity.data.DataPersistenceManager
+import com.example.vvesmartcity.data.DeviceData
 import java.util.UUID
 
 enum class SensorType(val label: String, val icon: String, val unit: String) {
@@ -51,9 +54,49 @@ object FarmDataSource {
     private val sensorRecords = mutableStateListOf<SensorRecord>()
     private val devices = mutableStateListOf<FarmDevice>()
     private val thresholds = mutableStateListOf<WarningThreshold>()
+    private var isInitialized = false
 
-    init {
-        initMockData()
+    fun init(context: Context) {
+        if (isInitialized) return
+        
+        val savedDevices = DataPersistenceManager.loadDevices()
+        if (savedDevices.isNotEmpty()) {
+            savedDevices.forEach { deviceData ->
+                val deviceType = when (deviceData.type) {
+                    "AC" -> DeviceType.AC
+                    "FAN" -> DeviceType.FAN
+                    "LIGHT" -> DeviceType.LIGHT
+                    "IRRIGATION" -> DeviceType.IRRIGATION
+                    else -> DeviceType.AC
+                }
+                devices.add(FarmDevice(
+                    id = deviceData.id,
+                    name = deviceData.name,
+                    type = deviceType,
+                    isOn = deviceData.isOn,
+                    location = deviceData.location
+                ))
+            }
+        } else {
+            initMockDevices()
+        }
+        
+        initMockSensorData()
+        initMockThresholds()
+        isInitialized = true
+    }
+    
+    private fun saveDevices() {
+        val deviceDataList = devices.map { device ->
+            DeviceData(
+                id = device.id,
+                name = device.name,
+                type = device.type.name,
+                isOn = device.isOn,
+                location = device.location
+            )
+        }
+        DataPersistenceManager.saveDevices(deviceDataList)
     }
 
     fun getCurrentSensorData(): List<SensorRecord> {
@@ -93,6 +136,7 @@ object FarmDataSource {
         val index = devices.indexOfFirst { it.id == id }
         if (index >= 0) {
             devices[index] = devices[index].copy(isOn = !devices[index].isOn)
+            saveDevices()
         }
     }
 
@@ -100,15 +144,18 @@ object FarmDataSource {
         val index = devices.indexOfFirst { it.id == device.id }
         if (index >= 0) {
             devices[index] = device
+            saveDevices()
         }
     }
 
     fun addDevice(device: FarmDevice) {
         devices.add(device)
+        saveDevices()
     }
 
     fun deleteDevice(id: String) {
         devices.removeAll { it.id == id }
+        saveDevices()
     }
 
     fun getThresholds(): List<WarningThreshold> = thresholds.toList()
@@ -126,9 +173,7 @@ object FarmDataSource {
         return sensorRecords.filter { !it.isNormal }
     }
 
-    private fun initMockData() {
-        val now = System.currentTimeMillis()
-
+    private fun initMockThresholds() {
         thresholds.addAll(
             listOf(
                 WarningThreshold(SensorType.TEMPERATURE, 15.0, 35.0),
@@ -139,6 +184,10 @@ object FarmDataSource {
                 WarningThreshold(SensorType.SOIL_MOISTURE, 20.0, 70.0)
             )
         )
+    }
+
+    private fun initMockSensorData() {
+        val now = System.currentTimeMillis()
 
         sensorRecords.addAll(
             listOf(
@@ -234,14 +283,16 @@ object FarmDataSource {
                 )
             )
         )
+    }
 
+    private fun initMockDevices() {
         devices.addAll(
             listOf(
                 FarmDevice(
                     id = "D001",
                     name = "空调1号",
                     type = DeviceType.AC,
-                    isOn = true,
+                    isOn = false,
                     location = "大棚A"
                 ),
                 FarmDevice(
@@ -255,7 +306,7 @@ object FarmDataSource {
                     id = "D003",
                     name = "补光灯1号",
                     type = DeviceType.LIGHT,
-                    isOn = true,
+                    isOn = false,
                     location = "大棚B"
                 ),
                 FarmDevice(
@@ -276,10 +327,11 @@ object FarmDataSource {
                     id = "D006",
                     name = "风扇2号",
                     type = DeviceType.FAN,
-                    isOn = true,
+                    isOn = false,
                     location = "大棚C"
                 )
             )
         )
+        saveDevices()
     }
 }

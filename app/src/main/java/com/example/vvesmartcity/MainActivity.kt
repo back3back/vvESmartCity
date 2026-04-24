@@ -82,6 +82,10 @@ import com.example.vvesmartcity.warning.WarningMainScreen
 import com.example.vvesmartcity.weather.WeatherAdvice
 import com.example.vvesmartcity.weather.WeatherDataSource
 import com.example.vvesmartcity.weather.WeatherRecord
+import com.example.vvesmartcity.data.DataPersistenceManager
+import com.example.vvesmartcity.farm.FarmDataSource
+import com.example.vvesmartcity.supermarket.ProductDataSource
+import com.example.vvesmartcity.warning.WarningDataSource
 import kotlinx.coroutines.delay
 
 sealed class Screen(val route: String, val title: String, val icon: Int, val activeIcon: Int) {
@@ -109,6 +113,12 @@ sealed class AppPage {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        DataPersistenceManager.init(applicationContext)
+        FarmDataSource.init(applicationContext)
+        ProductDataSource.init(applicationContext)
+        WarningDataSource.init(applicationContext)
+        
         enableEdgeToEdge()
         setContent {
             VvESmartCityTheme {
