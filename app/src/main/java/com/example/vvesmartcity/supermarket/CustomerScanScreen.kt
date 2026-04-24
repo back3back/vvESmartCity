@@ -30,7 +30,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,25 +53,22 @@ import com.google.mlkit.vision.common.InputImage
 @Composable
 fun CustomerScanScreen(
     onBack: () -> Unit,
-    onProductClick: (String) -> Unit
+    onCartClick: () -> Unit
 ) {
     val context = LocalContext.current
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
     var showProductDialog by remember { mutableStateOf(false) }
     var showNotFoundDialog by remember { mutableStateOf(false) }
-    var scannedProduct by remember { mutableStateOf<BarcodeProduct?>(null) }
-    var inventoryProduct by remember { mutableStateOf<Product?>(null) }
+    var scannedProduct by remember { mutableStateOf<Product?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
 
     fun handleBarcodeResult(barcode: String?) {
         if (barcode != null) {
             scannedBarcode = barcode
-            val product = BarcodeProductDatabase.findByBarcode(barcode)
-            val inventory = ProductDataSource.getProductById(barcode)
+            val product = ProductDataSource.getProductById(barcode)
             
-            if (product != null && inventory != null && inventory.quantity > 0) {
+            if (product != null && product.quantity > 0) {
                 scannedProduct = product
-                inventoryProduct = inventory
                 showProductDialog = true
             } else {
                 showNotFoundDialog = true
@@ -298,15 +294,23 @@ fun CustomerScanScreen(
         }
     }
 
-    if (showProductDialog && scannedProduct != null && inventoryProduct != null) {
+    if (showProductDialog && scannedProduct != null) {
         CustomerProductDialog(
             product = scannedProduct!!,
-            inventory = inventoryProduct!!,
             barcode = scannedBarcode ?: "",
             onDismiss = { showProductDialog = false },
-            onBuy = {
+            onAddToCart = {
+                val success = CartDataSource.addToCart(scannedProduct!!, 1)
+                if (success) {
+                    Toast.makeText(context, "已加入购物车", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "库存不足", Toast.LENGTH_SHORT).show()
+                }
                 showProductDialog = false
-                onProductClick(inventoryProduct!!.id)
+            },
+            onViewCart = {
+                showProductDialog = false
+                onCartClick()
             }
         )
     }
@@ -378,11 +382,11 @@ fun BarcodeTypeChipCustomer(type: String) {
 
 @Composable
 fun CustomerProductDialog(
-    product: BarcodeProduct,
-    inventory: Product,
+    product: Product,
     barcode: String,
     onDismiss: () -> Unit,
-    onBuy: () -> Unit
+    onAddToCart: () -> Unit,
+    onViewCart: () -> Unit
 ) {
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -413,20 +417,6 @@ fun CustomerProductDialog(
                             color = Color(0xFF263238)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Row {
-                            Text(
-                                text = "品牌: ${product.brand}",
-                                fontSize = 13.sp,
-                                color = Color(0xFF78909C)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = "分类: ${product.category}",
-                                fontSize = 13.sp,
-                                color = Color(0xFF78909C)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "条码: $barcode",
                             fontSize = 12.sp,
@@ -434,35 +424,53 @@ fun CustomerProductDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "库存: ${inventory.quantity} 件",
+                            text = "库存: ${product.quantity} 件",
                             fontSize = 13.sp,
                             color = Color(0xFF43A047)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "¥${String.format("%.2f", product.price)}",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE53935)
-                        )
+                        Row {
+                            Text(
+                                text = String.format("¥%.1f", product.unitPrice),
+                                fontSize = 14.sp,
+                                color = Color(0xFFB0BEC5),
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = String.format("¥%.1f", product.discountedPrice),
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE53935)
+                            )
+                        }
                     }
                 }
             }
         },
         confirmButton = {
             Button(
-                onClick = onBuy,
+                onClick = onAddToCart,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047))
             ) {
-                Text("立即购买")
+                Text("加入购物车")
             }
         },
         dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0))
-            ) {
-                Text("取消", color = Color(0xFF616161))
+            Row {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0))
+                ) {
+                    Text("取消", color = Color(0xFF616161))
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onViewCart,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
+                ) {
+                    Text("查看购物车")
+                }
             }
         }
     )

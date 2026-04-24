@@ -65,12 +65,10 @@ import com.example.vvesmartcity.ui.theme.SmartCityBlue
 import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
 import com.example.vvesmartcity.ui.theme.VvESmartCityTheme
-import com.example.vvesmartcity.supermarket.AddEditProductScreen
+import com.example.vvesmartcity.supermarket.CartScreen
 import com.example.vvesmartcity.supermarket.AdminManageScreen
 import com.example.vvesmartcity.supermarket.CustomerScanScreen
-import com.example.vvesmartcity.supermarket.ProductPurchaseScreen
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
-import com.example.vvesmartcity.supermarket.VideoMonitorScreen
 import com.example.vvesmartcity.auth.LoginScreen
 import com.example.vvesmartcity.auth.SessionManager
 import com.example.vvesmartcity.auth.User
@@ -86,6 +84,7 @@ import com.example.vvesmartcity.weather.WeatherRecord
 import com.example.vvesmartcity.data.DataPersistenceManager
 import com.example.vvesmartcity.farm.FarmDataSource
 import com.example.vvesmartcity.supermarket.ProductDataSource
+import com.example.vvesmartcity.supermarket.CartDataSource
 import com.example.vvesmartcity.warning.WarningDataSource
 import kotlinx.coroutines.delay
 
@@ -99,9 +98,7 @@ sealed class AppPage {
     object Profile : AppPage()
     object Weather : AppPage()
     object SupermarketMain : AppPage()
-    data class ProductPurchase(val productId: String) : AppPage()
-    data class AddEditProduct(val productId: String?) : AppPage()
-    object VideoMonitor : AppPage()
+    object Cart : AppPage()
     object CustomerScan : AppPage()
     object AdminManage : AppPage()
     object WarningMain : AppPage()
@@ -167,8 +164,10 @@ fun SmartCityApp() {
         LoginScreen(
             onLoginSuccess = { user ->
                 SessionManager.saveLogin(context, user)
+                CartDataSource.clearCart()
                 currentUser = user
                 isLoggedIn = true
+                selectedTab = 0
                 currentPage = AppPage.Home
                 pageHistory = listOf(AppPage.Home)
             }
@@ -184,16 +183,21 @@ fun SmartCityApp() {
             SupermarketMainScreen(
                 userRole = currentUser?.role ?: "用户",
                 onBack = { goBack() },
-                onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) },
+                onCartClick = { navigateTo(AppPage.Cart) },
                 onCustomerScan = { navigateTo(AppPage.CustomerScan) },
-                onAdminManage = { navigateTo(AppPage.AdminManage) },
-                onVideoMonitor = { navigateTo(AppPage.VideoMonitor) }
+                onAdminManage = { navigateTo(AppPage.AdminManage) }
+            )
+        }
+        is AppPage.Cart -> {
+            CartScreen(
+                onBack = { goBack() },
+                onCheckoutSuccess = { goBack() }
             )
         }
         is AppPage.CustomerScan -> {
             CustomerScanScreen(
                 onBack = { goBack() },
-                onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) }
+                onCartClick = { navigateTo(AppPage.Cart) }
             )
         }
         is AppPage.AdminManage -> {
@@ -221,25 +225,6 @@ fun SmartCityApp() {
                 onBack = { goBack() },
                 onSaveSuccess = { goBack() }
             )
-        }
-        is AppPage.ProductPurchase -> {
-            val purchasePage = currentPage as AppPage.ProductPurchase
-            ProductPurchaseScreen(
-                productId = purchasePage.productId,
-                onBack = { goBack() },
-                onPurchaseSuccess = { goBack() }
-            )
-        }
-        is AppPage.AddEditProduct -> {
-            val editPage = currentPage as AppPage.AddEditProduct
-            AddEditProductScreen(
-                productId = editPage.productId,
-                onBack = { goBack() },
-                onSaveSuccess = { goBack() }
-            )
-        }
-        is AppPage.VideoMonitor -> {
-            VideoMonitorScreen(onBack = { goBack() })
         }
         is AppPage.FarmMain -> {
             FarmMainScreen(
@@ -271,8 +256,10 @@ fun SmartCityApp() {
                         0 -> SmartCityHomeScreen(onModuleClick = { page -> navigateTo(page) })
                         1 -> ProfileScreen(user = currentUser) {
                             SessionManager.clearSession(context)
+                            CartDataSource.clearCart()
                             currentUser = null
                             isLoggedIn = false
+                            selectedTab = 0
                             currentPage = AppPage.Home
                             pageHistory = listOf(AppPage.Home)
                         }
