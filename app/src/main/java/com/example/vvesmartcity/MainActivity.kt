@@ -66,13 +66,12 @@ import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
 import com.example.vvesmartcity.ui.theme.VvESmartCityTheme
 import com.example.vvesmartcity.supermarket.AddEditProductScreen
-import com.example.vvesmartcity.supermarket.PhotoShoppingScreen
 import com.example.vvesmartcity.supermarket.ProductPurchaseScreen
-import com.example.vvesmartcity.supermarket.RealScanCodeScreen
-import com.example.vvesmartcity.supermarket.ScanCodeScreen
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
+import com.example.vvesmartcity.supermarket.UnifiedScanShopScreen
 import com.example.vvesmartcity.supermarket.VideoMonitorScreen
 import com.example.vvesmartcity.auth.LoginScreen
+import com.example.vvesmartcity.auth.SessionManager
 import com.example.vvesmartcity.auth.User
 import com.example.vvesmartcity.farm.AddEditRecordScreen
 import com.example.vvesmartcity.farm.AllFarmRecordsScreen
@@ -98,8 +97,7 @@ sealed class AppPage {
     data class ProductPurchase(val productId: String) : AppPage()
     data class AddEditProduct(val productId: String?) : AppPage()
     object VideoMonitor : AppPage()
-    object ScanCode : AppPage()
-    object PhotoShopping : AppPage()
+    object UnifiedScanShop : AppPage()
     object WarningMain : AppPage()
     object AllWarnings : AppPage()
     data class AddEditWarning(val warningId: String?) : AppPage()
@@ -122,11 +120,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SmartCityApp() {
-    var isLoggedIn by rememberSaveable { mutableStateOf(false) }
-    var currentUser by rememberSaveable { mutableStateOf<User?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isLoggedIn by remember { mutableStateOf(false) }
+    var currentUser by remember { mutableStateOf<User?>(null) }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentPage by remember { mutableStateOf<AppPage>(AppPage.Home) }
     var pageHistory by remember { mutableStateOf(listOf<AppPage>(AppPage.Home)) }
+
+    LaunchedEffect(Unit) {
+        val savedUser = SessionManager.getSavedUser(context)
+        if (savedUser != null) {
+            currentUser = savedUser
+            isLoggedIn = true
+        }
+    }
 
     fun navigateTo(page: AppPage) {
         currentPage = page
@@ -147,6 +154,7 @@ fun SmartCityApp() {
     if (!isLoggedIn) {
         LoginScreen(
             onLoginSuccess = { user ->
+                SessionManager.saveLogin(context, user)
                 currentUser = user
                 isLoggedIn = true
                 currentPage = AppPage.Home
@@ -165,20 +173,14 @@ fun SmartCityApp() {
                 onBack = { goBack() },
                 onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) },
                 onAddProduct = { navigateTo(AppPage.AddEditProduct(null)) },
-                onScanCode = { navigateTo(AppPage.ScanCode) },
-                onVideoMonitor = { navigateTo(AppPage.VideoMonitor) },
-                onPhotoShopping = { navigateTo(AppPage.PhotoShopping) }
+                onUnifiedScanShop = { navigateTo(AppPage.UnifiedScanShop) },
+                onVideoMonitor = { navigateTo(AppPage.VideoMonitor) }
             )
         }
-        is AppPage.ScanCode -> {
-            RealScanCodeScreen(
+        is AppPage.UnifiedScanShop -> {
+            UnifiedScanShopScreen(
                 onBack = { goBack() },
-                onScanResult = { barcode -> navigateTo(AppPage.ProductPurchase(barcode)) }
-            )
-        }
-        is AppPage.PhotoShopping -> {
-            PhotoShoppingScreen(
-                onBack = { goBack() }
+                onProductScanned = { productId -> navigateTo(AppPage.ProductPurchase(productId)) }
             )
         }
         is AppPage.WarningMain -> {
@@ -249,7 +251,13 @@ fun SmartCityApp() {
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (selectedTab) {
                         0 -> SmartCityHomeScreen(onModuleClick = { page -> navigateTo(page) })
-                        1 -> ProfileScreen(user = currentUser)
+                        1 -> ProfileScreen(user = currentUser) {
+                            SessionManager.clearSession(context)
+                            currentUser = null
+                            isLoggedIn = false
+                            currentPage = AppPage.Home
+                            pageHistory = listOf(AppPage.Home)
+                        }
                     }
                 }
             }
@@ -499,7 +507,7 @@ fun ModuleCard(module: ModuleItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun ProfileScreen(user: User?) {
+fun ProfileScreen(user: User?, onLogout: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -518,10 +526,11 @@ fun ProfileScreen(user: User?) {
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
                 .padding(top = 48.dp, bottom = 24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             ProfileHeader(user = user)
             Spacer(modifier = Modifier.height(32.dp))
-            ProfileInfoCard(user = user)
+            ProfileInfoCard(user = user, onLogout = onLogout)
         }
     }
 }
@@ -576,7 +585,7 @@ fun ProfileHeader(user: User?) {
 }
 
 @Composable
-fun ProfileInfoCard(user: User?) {
+fun ProfileInfoCard(user: User?, onLogout: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -602,6 +611,15 @@ fun ProfileInfoCard(user: User?) {
             ProfileInfoRow("城市", "智慧城市")
             Spacer(modifier = Modifier.height(12.dp))
             ProfileInfoRow("版本", "v1.0.0")
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onLogout,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("退出登录", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }

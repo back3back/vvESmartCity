@@ -57,9 +57,8 @@ fun SupermarketMainScreen(
     onBack: () -> Unit,
     onProductClick: (String) -> Unit,
     onAddProduct: () -> Unit,
-    onScanCode: () -> Unit,
-    onVideoMonitor: () -> Unit,
-    onPhotoShopping: () -> Unit
+    onUnifiedScanShop: () -> Unit,
+    onVideoMonitor: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var products by remember { mutableStateOf(ProductDataSource.searchProducts("")) }
@@ -154,12 +153,12 @@ fun SupermarketMainScreen(
                     Text("添加商品", fontSize = 13.sp)
                 }
                 Button(
-                    onClick = onScanCode,
+                    onClick = onUnifiedScanShop,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.weight(1f).height(40.dp)
                 ) {
-                    Text("拍码购物", fontSize = 13.sp)
+                    Text("扫码购物", fontSize = 13.sp)
                 }
                 Button(
                     onClick = onVideoMonitor,
@@ -168,14 +167,6 @@ fun SupermarketMainScreen(
                     modifier = Modifier.weight(1f).height(40.dp)
                 ) {
                     Text("视频监控", fontSize = 13.sp)
-                }
-                Button(
-                    onClick = onPhotoShopping,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(40.dp)
-                ) {
-                    Text("拍照购物", fontSize = 13.sp)
                 }
             }
 
