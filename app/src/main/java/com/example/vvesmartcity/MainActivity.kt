@@ -1,11 +1,14 @@
 package com.example.vvesmartcity
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -57,11 +60,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.vvesmartcity.ui.theme.SmartCityBlue
 import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
@@ -255,15 +260,24 @@ fun SmartCityApp() {
                 Box(modifier = Modifier.padding(innerPadding)) {
                     when (selectedTab) {
                         0 -> SmartCityHomeScreen(onModuleClick = { page -> navigateTo(page) })
-                        1 -> ProfileScreen(user = currentUser) {
-                            SessionManager.clearSession(context)
-                            CartDataSource.clearCart()
-                            currentUser = null
-                            isLoggedIn = false
-                            selectedTab = 0
-                            currentPage = AppPage.Home
-                            pageHistory = listOf(AppPage.Home)
-                        }
+                        1 -> ProfileScreen(
+                            user = currentUser,
+                            onLogout = {
+                                SessionManager.clearSession(context)
+                                CartDataSource.clearCart()
+                                currentUser = null
+                                isLoggedIn = false
+                                selectedTab = 0
+                                currentPage = AppPage.Home
+                                pageHistory = listOf(AppPage.Home)
+                            },
+                            onAvatarChange = { uri ->
+                                val uriString = uri?.toString()
+                                SessionManager.saveAvatarUri(context, uriString)
+                                currentUser?.avatarUri = uriString
+                                currentUser = currentUser
+                            }
+                        )
                     }
                 }
             }
@@ -514,7 +528,7 @@ fun ModuleCard(module: ModuleItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun ProfileScreen(user: User?, onLogout: () -> Unit) {
+fun ProfileScreen(user: User?, onLogout: () -> Unit, onAvatarChange: (Uri?) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -536,7 +550,7 @@ fun ProfileScreen(user: User?, onLogout: () -> Unit) {
                 .padding(top = 48.dp, bottom = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            ProfileHeader(user = user)
+            ProfileHeader(user = user, onAvatarChange = onAvatarChange)
             Spacer(modifier = Modifier.height(32.dp))
             ProfileInfoCard(user = user, onLogout = onLogout)
         }
@@ -544,7 +558,13 @@ fun ProfileScreen(user: User?, onLogout: () -> Unit) {
 }
 
 @Composable
-fun ProfileHeader(user: User?) {
+fun ProfileHeader(user: User?, onAvatarChange: (Uri?) -> Unit) {
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        onAvatarChange(uri)
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
@@ -557,20 +577,31 @@ fun ProfileHeader(user: User?) {
                     shape = CircleShape,
                     spotColor = SmartCityBlue.copy(alpha = 0.2f)
                 )
+                .clip(CircleShape)
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(SmartCityLightBlue, SmartCityDarkBlue)
                     ),
                     shape = CircleShape
-                ),
+                )
+                .clickable { launcher.launch("image/*") },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_account_box),
-                contentDescription = null,
-                modifier = Modifier.size(36.dp),
-                tint = Color.White
-            )
+            if (user?.avatarUri != null) {
+                AsyncImage(
+                    model = user.avatarUri,
+                    contentDescription = "头像",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_account_box),
+                    contentDescription = null,
+                    modifier = Modifier.size(36.dp),
+                    tint = Color.White
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -584,9 +615,9 @@ fun ProfileHeader(user: User?) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = user?.username ?: "admin@smartcity.com",
+                text = "点击头像更换",
                 fontSize = 13.sp,
-                color = Color(0xFF78909C)
+                color = Color(0xFF90A4AE)
             )
         }
     }
@@ -594,6 +625,14 @@ fun ProfileHeader(user: User?) {
 
 @Composable
 fun ProfileInfoCard(user: User?, onLogout: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val versionName = try {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        "v${packageInfo.versionName}"
+    } catch (e: Exception) {
+        "v1.0.0"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -618,7 +657,7 @@ fun ProfileInfoCard(user: User?, onLogout: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
             ProfileInfoRow("城市", "智慧城市")
             Spacer(modifier = Modifier.height(12.dp))
-            ProfileInfoRow("版本", "v1.0.0")
+            ProfileInfoRow("版本", versionName)
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onLogout,

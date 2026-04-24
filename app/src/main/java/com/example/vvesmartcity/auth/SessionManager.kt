@@ -9,6 +9,7 @@ object SessionManager {
     private const val KEY_USERNAME = "username"
     private const val KEY_PASSWORD = "password"
     private const val KEY_LOGIN_TIME = "login_time"
+    private const val KEY_AVATAR_URI = "avatar_uri"
     private const val SESSION_TIMEOUT = 7 * 24 * 60 * 60 * 1000L
 
     private fun getPrefs(context: Context): SharedPreferences {
@@ -39,8 +40,24 @@ object SessionManager {
 
         val username = prefs.getString(KEY_USERNAME, null) ?: return null
         val password = prefs.getString(KEY_PASSWORD, null) ?: return null
+        val avatarUri = prefs.getString(KEY_AVATAR_URI, null)
 
-        return AuthDataSource.login(username, password)
+        val user = AuthDataSource.login(username, password)
+        user?.avatarUri = avatarUri
+        return user
+    }
+
+    fun saveAvatarUri(context: Context, uri: String?) {
+        val prefs = getPrefs(context)
+        prefs.edit().apply {
+            putString(KEY_AVATAR_URI, uri)
+            apply()
+        }
+    }
+
+    fun getAvatarUri(context: Context): String? {
+        val prefs = getPrefs(context)
+        return prefs.getString(KEY_AVATAR_URI, null)
     }
 
     fun clearSession(context: Context) {

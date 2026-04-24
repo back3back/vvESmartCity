@@ -4,7 +4,8 @@ data class User(
     val username: String,
     val password: String,
     val displayName: String,
-    val role: String
+    val role: String,
+    var avatarUri: String? = null
 )
 
 object AuthDataSource {
