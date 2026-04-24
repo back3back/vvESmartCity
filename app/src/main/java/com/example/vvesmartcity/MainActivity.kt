@@ -67,6 +67,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.yalantis.ucrop.UCrop
 import com.example.vvesmartcity.ui.theme.SmartCityBlue
 import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
@@ -272,10 +273,22 @@ fun SmartCityApp() {
                                 pageHistory = listOf(AppPage.Home)
                             },
                             onAvatarChange = { uri ->
+                                val oldAvatarUri = currentUser?.avatarUri
                                 val uriString = uri?.toString()
+                                
+                                if (oldAvatarUri != null && oldAvatarUri.startsWith("file://")) {
+                                    try {
+                                        val oldFile = java.io.File(Uri.parse(oldAvatarUri).path ?: "")
+                                        if (oldFile.exists()) {
+                                            oldFile.delete()
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                                
                                 SessionManager.saveAvatarUri(context, uriString)
-                                currentUser?.avatarUri = uriString
-                                currentUser = currentUser
+                                currentUser = currentUser?.copy(avatarUri = uriString)
                             }
                         )
                     }
@@ -559,10 +572,52 @@ fun ProfileScreen(user: User?, onLogout: () -> Unit, onAvatarChange: (Uri?) -> U
 
 @Composable
 fun ProfileHeader(user: User?, onAvatarChange: (Uri?) -> Unit) {
-    val launcher = rememberLauncherForActivityResult(
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val uCropLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        when (result.resultCode) {
+            android.app.Activity.RESULT_OK -> {
+                result.data?.let { data ->
+                    val resultUri = UCrop.getOutput(data)
+                    resultUri?.let { onAvatarChange(it) }
+                }
+            }
+            UCrop.RESULT_ERROR -> {
+                result.data?.let { data ->
+                    val error = UCrop.getError(data)
+                    error?.printStackTrace()
+                }
+            }
+        }
+    }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        onAvatarChange(uri)
+        uri?.let { sourceUri ->
+            val destinationUri = Uri.fromFile(
+                java.io.File(context.cacheDir, "cropped_avatar_${System.currentTimeMillis()}.jpg")
+            )
+            val options = UCrop.Options().apply {
+                setCircleDimmedLayer(true)
+                setShowCropGrid(true)
+                setShowCropFrame(true)
+                setToolbarColor(android.graphics.Color.WHITE)
+                setStatusBarColor(android.graphics.Color.WHITE)
+                setToolbarWidgetColor(android.graphics.Color.parseColor("#1A237E"))
+                setDimmedLayerColor(android.graphics.Color.parseColor("#99000000"))
+                setCropGridColor(android.graphics.Color.WHITE)
+                setCropFrameColor(android.graphics.Color.WHITE)
+            }
+            val uCropIntent = UCrop.of(sourceUri, destinationUri)
+                .withAspectRatio(1f, 1f)
+                .withMaxResultSize(800, 800)
+                .withOptions(options)
+                .getIntent(context)
+            uCropLauncher.launch(uCropIntent)
+        }
     }
 
     Row(
@@ -584,7 +639,7 @@ fun ProfileHeader(user: User?, onAvatarChange: (Uri?) -> Unit) {
                     ),
                     shape = CircleShape
                 )
-                .clickable { launcher.launch("image/*") },
+                .clickable { imagePickerLauncher.launch("image/*") },
             contentAlignment = Alignment.Center
         ) {
             if (user?.avatarUri != null) {
