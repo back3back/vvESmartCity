@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -63,6 +64,7 @@ fun WarningMainScreen(
                     colors = listOf(Color(0xFFFFEBEE), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -298,6 +300,7 @@ fun AllWarningsScreen(
                     colors = listOf(Color(0xFFFFEBEE), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -546,6 +549,7 @@ fun AddEditWarningScreen(
                     colors = listOf(Color(0xFFFFEBEE), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier

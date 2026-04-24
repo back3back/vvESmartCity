@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -69,6 +70,7 @@ fun FarmMainScreen(
                     colors = listOf(Color(0xFFFFF3E0), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -461,6 +463,7 @@ fun AllFarmRecordsScreen(
                     colors = listOf(Color(0xFFFFF3E0), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -696,6 +699,7 @@ fun AddEditRecordScreen(
                     colors = listOf(Color(0xFFFFF3E0), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
                 )
             )
+            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
