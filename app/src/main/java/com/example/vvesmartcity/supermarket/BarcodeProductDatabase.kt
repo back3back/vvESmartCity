@@ -9,7 +9,7 @@ data class BarcodeProduct(
 )
 
 object BarcodeProductDatabase {
-    private val products = mapOf(
+    private val _products = mutableMapOf(
         "6901234567890" to BarcodeProduct("6901234567890", "有机纯牛奶 250ml", 12.5f, "乳制品", "伊利"),
         "6901234567891" to BarcodeProduct("6901234567891", "全麦面包 400g", 8.0f, "烘焙食品", "桃李"),
         "6901234567892" to BarcodeProduct("6901234567892", "红富士苹果 1kg", 15.8f, "水果", "佳农"),
@@ -42,23 +42,29 @@ object BarcodeProductDatabase {
         "6913789000006" to BarcodeProduct("6913789000006", "卫龙辣条 106g", 5.0f, "零食", "卫龙")
     )
     
+    val products: Map<String, BarcodeProduct> get() = _products.toMap()
+    
     fun findByBarcode(barcode: String): BarcodeProduct? {
-        return products[barcode]
+        return _products[barcode]
     }
     
     fun searchByName(query: String): List<BarcodeProduct> {
         if (query.isBlank()) return emptyList()
-        return products.values.filter { 
+        return _products.values.filter { 
             it.name.contains(query, ignoreCase = true) ||
             it.brand.contains(query, ignoreCase = true) ||
             it.category.contains(query, ignoreCase = true)
         }
     }
     
-    fun getAllProducts(): List<BarcodeProduct> = products.values.toList()
+    fun getAllProducts(): List<BarcodeProduct> = _products.values.toList()
+    
+    fun addProduct(product: BarcodeProduct) {
+        _products[product.barcode] = product
+    }
     
     fun generateRandomBarcode(): String {
-        val existingBarcodes = products.keys.toList()
+        val existingBarcodes = _products.keys.toList()
         return existingBarcodes.random()
     }
 }

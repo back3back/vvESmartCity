@@ -54,12 +54,14 @@ import java.util.Locale
 
 @Composable
 fun SupermarketMainScreen(
+    userRole: String,
     onBack: () -> Unit,
     onProductClick: (String) -> Unit,
-    onAddProduct: () -> Unit,
-    onUnifiedScanShop: () -> Unit,
+    onCustomerScan: () -> Unit,
+    onAdminManage: () -> Unit,
     onVideoMonitor: () -> Unit
 ) {
+    val isAdmin = userRole == "管理员"
     var searchQuery by remember { mutableStateOf("") }
     var products by remember { mutableStateOf(ProductDataSource.searchProducts("")) }
 
@@ -140,33 +142,57 @@ fun SupermarketMainScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onAddProduct,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(40.dp)
+            if (isAdmin) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("添加商品", fontSize = 13.sp)
+                    Button(
+                        onClick = onCustomerScan,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("扫码购物", fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = onAdminManage,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("商品管理", fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = onVideoMonitor,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF78909C)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("视频监控", fontSize = 13.sp)
+                    }
                 }
-                Button(
-                    onClick = onUnifiedScanShop,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(40.dp)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("扫码购物", fontSize = 13.sp)
-                }
-                Button(
-                    onClick = onVideoMonitor,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.weight(1f).height(40.dp)
-                ) {
-                    Text("视频监控", fontSize = 13.sp)
+                    Button(
+                        onClick = onCustomerScan,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("扫码购物", fontSize = 14.sp)
+                    }
+                    Button(
+                        onClick = onVideoMonitor,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF78909C)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).height(40.dp)
+                    ) {
+                        Text("视频监控", fontSize = 14.sp)
+                    }
                 }
             }
 

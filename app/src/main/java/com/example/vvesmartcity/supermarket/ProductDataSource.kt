@@ -84,6 +84,14 @@ object ProductDataSource {
         }
     }
 
+    fun updateQuantity(id: String, newQuantity: Int) {
+        val index = products.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            products[index] = products[index].copy(quantity = newQuantity)
+            saveProducts()
+        }
+    }
+
     fun deleteProduct(id: String) {
         products.removeAll { it.id == id }
         saveProducts()

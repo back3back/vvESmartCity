@@ -66,9 +66,10 @@ import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
 import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
 import com.example.vvesmartcity.ui.theme.VvESmartCityTheme
 import com.example.vvesmartcity.supermarket.AddEditProductScreen
+import com.example.vvesmartcity.supermarket.AdminManageScreen
+import com.example.vvesmartcity.supermarket.CustomerScanScreen
 import com.example.vvesmartcity.supermarket.ProductPurchaseScreen
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
-import com.example.vvesmartcity.supermarket.UnifiedScanShopScreen
 import com.example.vvesmartcity.supermarket.VideoMonitorScreen
 import com.example.vvesmartcity.auth.LoginScreen
 import com.example.vvesmartcity.auth.SessionManager
@@ -101,7 +102,8 @@ sealed class AppPage {
     data class ProductPurchase(val productId: String) : AppPage()
     data class AddEditProduct(val productId: String?) : AppPage()
     object VideoMonitor : AppPage()
-    object UnifiedScanShop : AppPage()
+    object CustomerScan : AppPage()
+    object AdminManage : AppPage()
     object WarningMain : AppPage()
     object AllWarnings : AppPage()
     data class AddEditWarning(val warningId: String?) : AppPage()
@@ -180,17 +182,23 @@ fun SmartCityApp() {
         }
         is AppPage.SupermarketMain -> {
             SupermarketMainScreen(
+                userRole = currentUser?.role ?: "用户",
                 onBack = { goBack() },
                 onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) },
-                onAddProduct = { navigateTo(AppPage.AddEditProduct(null)) },
-                onUnifiedScanShop = { navigateTo(AppPage.UnifiedScanShop) },
+                onCustomerScan = { navigateTo(AppPage.CustomerScan) },
+                onAdminManage = { navigateTo(AppPage.AdminManage) },
                 onVideoMonitor = { navigateTo(AppPage.VideoMonitor) }
             )
         }
-        is AppPage.UnifiedScanShop -> {
-            UnifiedScanShopScreen(
+        is AppPage.CustomerScan -> {
+            CustomerScanScreen(
                 onBack = { goBack() },
-                onProductScanned = { productId -> navigateTo(AppPage.ProductPurchase(productId)) }
+                onProductClick = { productId -> navigateTo(AppPage.ProductPurchase(productId)) }
+            )
+        }
+        is AppPage.AdminManage -> {
+            AdminManageScreen(
+                onBack = { goBack() }
             )
         }
         is AppPage.WarningMain -> {
