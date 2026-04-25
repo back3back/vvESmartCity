@@ -29,12 +29,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,23 +43,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vvesmartcity.ui.theme.SmartCityBlue
-import kotlinx.coroutines.delay
 
 @Composable
-fun WeatherScreen(onBack: () -> Unit) {
-    var currentWeather by remember { mutableStateOf(WeatherDataSource.getCurrentData()) }
-    var selectedDays by remember { mutableIntStateOf(1) }
-    var historyData by remember { mutableStateOf<List<WeatherRecord>>(emptyList()) }
+fun WeatherScreen(onBack: () -> Unit, viewModel: WeatherViewModel = viewModel()) {
+    val weatherState by viewModel.state.collectAsState()
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentWeather = WeatherDataSource.getCurrentData()
-            delay(5000)
+    DisposableEffect(Unit) {
+        viewModel.startPolling()
+        onDispose {
+            viewModel.stopPolling()
         }
-    }
-
-    LaunchedEffect(selectedDays) {
-        historyData = WeatherDataSource.getHistoryData(selectedDays)
     }
 
     Box(
@@ -106,11 +97,13 @@ fun WeatherScreen(onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            CurrentWeatherCard(currentWeather)
+            weatherState.currentWeather?.let { currentWeather ->
+                CurrentWeatherCard(currentWeather)
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            AdviceSection(currentWeather)
+                AdviceSection(currentWeather)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -123,15 +116,15 @@ fun WeatherScreen(onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            DaySelector(selectedDays) { selectedDays = it }
+            DaySelector(weatherState.selectedDays) { viewModel.setSelectedDays(it) }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            TemperatureHumidityChart(historyData)
+            TemperatureHumidityChart(weatherState.historyData)
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            HistoryList(historyData)
+            HistoryList(weatherState.historyData)
         }
     }
 }

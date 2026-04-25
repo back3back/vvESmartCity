@@ -32,10 +32,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,10 +54,9 @@ import java.util.Locale
 @Composable
 fun WarningMainScreen(
     onBack: () -> Unit,
-    onViewAll: () -> Unit
+    onViewAll: () -> Unit,
+    viewModel: WarningViewModel = viewModel()
 ) {
-    val currentWarnings = remember { WarningDataSource.getCurrentWarnings() }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -125,7 +126,7 @@ fun WarningMainScreen(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = "${currentWarnings.size} 条未处理",
+                                    text = "${viewModel.currentWarnings.size} 条未处理",
                                     fontSize = 13.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -137,7 +138,7 @@ fun WarningMainScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (currentWarnings.isEmpty()) {
+            if (viewModel.currentWarnings.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -165,7 +166,7 @@ fun WarningMainScreen(
                     }
                 }
             } else {
-                currentWarnings.forEach { warning ->
+                viewModel.currentWarnings.forEach { warning ->
                     Spacer(modifier = Modifier.height(10.dp))
                     WarningCard(warning = warning)
                 }
@@ -287,10 +288,11 @@ fun WarningCard(warning: WarningRecord) {
 fun AllWarningsScreen(
     onBack: () -> Unit,
     onAddWarning: () -> Unit,
-    onEditWarning: (String) -> Unit
+    onEditWarning: (String) -> Unit,
+    viewModel: WarningViewModel = viewModel()
 ) {
+    val warningState by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var warnings by remember { mutableStateOf(WarningDataSource.getAllWarnings()) }
 
     Column(
         modifier = Modifier
@@ -357,7 +359,7 @@ fun AllWarningsScreen(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
-                            warnings = WarningDataSource.searchWarnings(it)
+                            viewModel.searchWarnings(it)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF263238))
@@ -365,7 +367,7 @@ fun AllWarningsScreen(
                 }
                 Button(
                     onClick = {
-                        warnings = WarningDataSource.searchWarnings(searchQuery)
+                        viewModel.searchWarnings(searchQuery)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                     shape = RoundedCornerShape(22.dp),
@@ -378,7 +380,7 @@ fun AllWarningsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "共 ${warnings.size} 条记录",
+                text = "共 ${warningState.warnings.size} 条记录",
                 fontSize = 14.sp,
                 color = Color(0xFF78909C)
             )
@@ -388,17 +390,15 @@ fun AllWarningsScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(warnings) { warning ->
+                items(warningState.warnings) { warning ->
                     WarningListItem(
                         warning = warning,
                         onEdit = { onEditWarning(warning.id) },
                         onDelete = {
-                            WarningDataSource.deleteWarning(warning.id)
-                            warnings = WarningDataSource.getAllWarnings()
+                            viewModel.deleteWarning(warning.id)
                         },
                         onToggleHandled = {
-                            WarningDataSource.markAsHandled(warning.id)
-                            warnings = WarningDataSource.getAllWarnings()
+                            viewModel.markAsHandled(warning.id)
                         }
                     )
                 }
@@ -533,9 +533,11 @@ fun WarningListItem(
 fun AddEditWarningScreen(
     warningId: String?,
     onBack: () -> Unit,
-    onSaveSuccess: () -> Unit
+    onSaveSuccess: () -> Unit,
+    viewModel: WarningViewModel = viewModel()
 ) {
-    val editingWarning = warningId?.let { WarningDataSource.getAllWarnings().find { w -> w.id == it } }
+    val warningState by viewModel.state.collectAsState()
+    val editingWarning = warningId?.let { warningState.warnings.find { w -> w.id == it } }
     var location by remember { mutableStateOf(editingWarning?.location ?: "") }
     var description by remember { mutableStateOf(editingWarning?.description ?: "") }
     var selectedType by remember { mutableStateOf(editingWarning?.type ?: WarningType.FLAME) }
@@ -679,7 +681,7 @@ fun AddEditWarningScreen(
             Button(
                 onClick = {
                     if (editingWarning != null) {
-                        WarningDataSource.updateWarning(
+                        viewModel.updateWarning(
                             editingWarning.copy(
                                 type = selectedType,
                                 level = selectedLevel,
@@ -688,7 +690,7 @@ fun AddEditWarningScreen(
                             )
                         )
                     } else {
-                        WarningDataSource.addWarning(
+                        viewModel.addWarning(
                             WarningRecord(
                                 id = "W${System.currentTimeMillis() % 10000}",
                                 type = selectedType,

@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,12 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vvesmartcity.R
 import com.example.vvesmartcity.ui.theme.SmartCityBlue
 import com.example.vvesmartcity.ui.theme.SmartCityDarkBlue
@@ -45,11 +48,13 @@ import com.example.vvesmartcity.ui.theme.SmartCityLightBlue
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (User) -> Unit
+    onLoginSuccess: (User) -> Unit,
+    authViewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val authState by authViewModel.state.collectAsState()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier
@@ -140,7 +145,7 @@ fun LoginScreen(
                         value = username,
                         onValueChange = { 
                             username = it
-                            errorMessage = ""
+                            authViewModel.clearError()
                         },
                         label = { Text("用户名") },
                         modifier = Modifier.fillMaxWidth(),
@@ -153,7 +158,7 @@ fun LoginScreen(
                         value = password,
                         onValueChange = { 
                             password = it
-                            errorMessage = ""
+                            authViewModel.clearError()
                         },
                         label = { Text("密码") },
                         modifier = Modifier.fillMaxWidth(),
@@ -162,10 +167,10 @@ fun LoginScreen(
                         singleLine = true
                     )
 
-                    if (errorMessage.isNotEmpty()) {
+                    if (authState.errorMessage.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = errorMessage,
+                            text = authState.errorMessage,
                             fontSize = 13.sp,
                             color = Color(0xFFE53935),
                             modifier = Modifier.fillMaxWidth()
@@ -176,19 +181,11 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            if (username.isBlank()) {
-                                errorMessage = "请输入用户名"
-                                return@Button
-                            }
-                            if (password.isBlank()) {
-                                errorMessage = "请输入密码"
-                                return@Button
-                            }
-                            val user = AuthDataSource.login(username, password)
-                            if (user != null) {
-                                onLoginSuccess(user)
-                            } else {
-                                errorMessage = "用户名或密码错误"
+                            authViewModel.login(context, username, password) {
+                                val user = authState.currentUser
+                                if (user != null) {
+                                    onLoginSuccess(user)
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(

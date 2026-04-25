@@ -30,10 +30,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,20 +51,11 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CartScreen(
     onBack: () -> Unit,
-    onCheckoutSuccess: () -> Unit
+    onCheckoutSuccess: () -> Unit,
+    viewModel: CartViewModel = viewModel()
 ) {
-    var cartItems by remember { mutableStateOf(CartDataSource.items.toList()) }
+    val cartState by viewModel.state.collectAsState()
     var showSuccess by remember { mutableStateOf(false) }
-    var refreshKey by remember { mutableStateOf(0) }
-    var totalCount by remember { mutableStateOf(CartDataSource.itemCount) }
-    var totalAmount by remember { mutableStateOf(CartDataSource.totalAmount) }
-
-    fun refreshCart() {
-        cartItems = CartDataSource.items.toList()
-        totalCount = CartDataSource.itemCount
-        totalAmount = CartDataSource.totalAmount
-        refreshKey++
-    }
 
     if (showSuccess) {
         CheckoutSuccessScreen(onBack = onBack)
@@ -97,13 +90,13 @@ fun CartScreen(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "${cartItems.size} 种商品",
+                text = "${cartState.items.size} 种商品",
                 fontSize = 14.sp,
                 color = Color(0xFF78909C)
             )
         }
 
-        if (cartItems.isEmpty()) {
+        if (cartState.items.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -138,16 +131,14 @@ fun CartScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(cartItems, key = { "${it.product.id}_$refreshKey" }) { item ->
+                items(cartState.items, key = { "${it.product.id}" }) { item ->
                     CartItemCard(
                         item = item,
                         onQuantityChange = { newQuantity ->
-                            CartDataSource.updateQuantity(item.product.id, newQuantity)
-                            refreshCart()
+                            viewModel.updateQuantity(item.product.id, newQuantity)
                         },
                         onRemove = {
-                            CartDataSource.removeFromCart(item.product.id)
-                            refreshCart()
+                            viewModel.removeFromCart(item.product.id)
                         }
                     )
                 }
@@ -171,7 +162,7 @@ fun CartScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "共 $totalCount 件商品",
+                            text = "共 ${cartState.itemCount} 件商品",
                             fontSize = 14.sp,
                             color = Color(0xFF78909C)
                         )
@@ -182,7 +173,7 @@ fun CartScreen(
                                 color = Color(0xFF263238)
                             )
                             Text(
-                                text = String.format("¥%.2f", totalAmount),
+                                text = String.format("¥%.2f", cartState.totalAmount),
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE53935)
@@ -198,8 +189,7 @@ fun CartScreen(
                     ) {
                         Button(
                             onClick = {
-                                CartDataSource.clearCart()
-                                refreshCart()
+                                viewModel.clearCart()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0E0E0)),
                             shape = RoundedCornerShape(12.dp),
@@ -212,7 +202,7 @@ fun CartScreen(
 
                         Button(
                             onClick = {
-                                CartDataSource.checkout()
+                                viewModel.checkout()
                                 showSuccess = true
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),

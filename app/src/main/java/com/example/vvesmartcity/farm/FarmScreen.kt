@@ -34,10 +34,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,13 +56,11 @@ import java.util.Locale
 @Composable
 fun FarmMainScreen(
     onBack: () -> Unit,
-    onViewAll: () -> Unit
+    onViewAll: () -> Unit,
+    viewModel: FarmViewModel = viewModel()
 ) {
-    var sensorData by remember { mutableStateOf(FarmDataSource.getCurrentSensorData()) }
-    var devices by remember { mutableStateOf(FarmDataSource.getDevices()) }
-    var thresholds by remember { mutableStateOf(FarmDataSource.getThresholds()) }
+    val farmState by viewModel.state.collectAsState()
     var showThresholdDialog by remember { mutableStateOf<SensorType?>(null) }
-    var abnormalCount by remember { mutableStateOf(FarmDataSource.getAbnormalRecords().size) }
 
     Column(
         modifier = Modifier
@@ -131,7 +131,7 @@ fun FarmMainScreen(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = "${abnormalCount} 条异常数据",
+                                    text = "${viewModel.abnormalRecords.size} 条异常数据",
                                     fontSize = 13.sp,
                                     color = Color.White.copy(alpha = 0.8f)
                                 )
@@ -152,7 +152,7 @@ fun FarmMainScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            sensorData.forEach { record ->
+            viewModel.currentSensorData.forEach { record ->
                 Spacer(modifier = Modifier.height(8.dp))
                 SensorCard(
                     record = record,
@@ -171,13 +171,12 @@ fun FarmMainScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            devices.forEach { device ->
+            farmState.devices.forEach { device ->
                 Spacer(modifier = Modifier.height(8.dp))
                 DeviceCard(
                     device = device,
                     onToggle = {
-                        FarmDataSource.toggleDevice(device.id)
-                        devices = FarmDataSource.getDevices()
+                        viewModel.toggleDevice(device.id)
                     }
                 )
             }
@@ -202,13 +201,10 @@ fun FarmMainScreen(
     showThresholdDialog?.let { sensorType ->
         ThresholdDialog(
             sensorType = sensorType,
-            currentThreshold = thresholds.find { it.sensorType == sensorType },
+            currentThreshold = farmState.thresholds.find { it.sensorType == sensorType },
             onDismiss = { showThresholdDialog = null },
             onSave = { min, max ->
-                FarmDataSource.updateThreshold(WarningThreshold(sensorType, min, max))
-                thresholds = FarmDataSource.getThresholds()
-                sensorData = FarmDataSource.getCurrentSensorData()
-                abnormalCount = FarmDataSource.getAbnormalRecords().size
+                viewModel.updateThreshold(WarningThreshold(sensorType, min, max))
                 showThresholdDialog = null
             }
         )
@@ -450,10 +446,11 @@ fun ThresholdDialog(
 fun AllFarmRecordsScreen(
     onBack: () -> Unit,
     onAddRecord: () -> Unit,
-    onEditRecord: (String) -> Unit
+    onEditRecord: (String) -> Unit,
+    viewModel: FarmViewModel = viewModel()
 ) {
+    val farmState by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var records by remember { mutableStateOf(FarmDataSource.getAllRecords()) }
 
     Column(
         modifier = Modifier
@@ -520,7 +517,7 @@ fun AllFarmRecordsScreen(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
-                            records = FarmDataSource.searchRecords(it)
+                            viewModel.searchRecords(it)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF263238))
@@ -528,7 +525,7 @@ fun AllFarmRecordsScreen(
                 }
                 Button(
                     onClick = {
-                        records = FarmDataSource.searchRecords(searchQuery)
+                        viewModel.searchRecords(searchQuery)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
                     shape = RoundedCornerShape(22.dp),
@@ -541,7 +538,7 @@ fun AllFarmRecordsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "共 ${records.size} 条记录",
+                text = "共 ${farmState.sensorRecords.size} 条记录",
                 fontSize = 14.sp,
                 color = Color(0xFF78909C)
             )
@@ -551,13 +548,12 @@ fun AllFarmRecordsScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(records) { record ->
+                items(farmState.sensorRecords) { record ->
                     RecordListItem(
                         record = record,
                         onEdit = { onEditRecord(record.id) },
                         onDelete = {
-                            FarmDataSource.deleteRecord(record.id)
-                            records = FarmDataSource.getAllRecords()
+                            viewModel.deleteRecord(record.id)
                         }
                     )
                 }
@@ -682,9 +678,11 @@ fun RecordListItem(
 fun AddEditRecordScreen(
     recordId: String?,
     onBack: () -> Unit,
-    onSaveSuccess: () -> Unit
+    onSaveSuccess: () -> Unit,
+    viewModel: FarmViewModel = viewModel()
 ) {
-    val editingRecord = recordId?.let { FarmDataSource.getAllRecords().find { r -> r.id == it } }
+    val farmState by viewModel.state.collectAsState()
+    val editingRecord = recordId?.let { farmState.sensorRecords.find { r -> r.id == it } }
     var location by remember { mutableStateOf(editingRecord?.location ?: "") }
     var value by remember { mutableStateOf(editingRecord?.value?.toString() ?: "") }
     var selectedType by remember { mutableStateOf(editingRecord?.type ?: SensorType.TEMPERATURE) }
@@ -816,7 +814,7 @@ fun AddEditRecordScreen(
                         val min = thresholdMin.toDoubleOrNull() ?: 0.0
                         val max = thresholdMax.toDoubleOrNull() ?: 100.0
                         if (editingRecord != null) {
-                            FarmDataSource.updateRecord(
+                            viewModel.updateRecord(
                                 editingRecord.copy(
                                     type = selectedType,
                                     value = v,
@@ -826,7 +824,7 @@ fun AddEditRecordScreen(
                                 )
                             )
                         } else {
-                            FarmDataSource.addRecord(
+                            viewModel.addRecord(
                                 SensorRecord(
                                     id = "S${System.currentTimeMillis()}",
                                     type = selectedType,

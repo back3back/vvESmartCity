@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun SupermarketMainScreen(
@@ -47,21 +49,16 @@ fun SupermarketMainScreen(
     onBack: () -> Unit,
     onCartClick: () -> Unit,
     onCustomerScan: () -> Unit,
-    onAdminManage: () -> Unit
+    onAdminManage: () -> Unit,
+    productViewModel: ProductViewModel = viewModel(),
+    cartViewModel: CartViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val isAdmin = userRole == "管理员"
     var searchQuery by remember { mutableStateOf("") }
-    var products by remember { mutableStateOf(ProductDataSource.searchProducts("")) }
-    var cartCount by remember { mutableStateOf(CartDataSource.itemCount) }
-    var cartTotal by remember { mutableStateOf(CartDataSource.totalAmount) }
+    val productState by productViewModel.state.collectAsState()
+    val cartState by cartViewModel.state.collectAsState()
     var refreshKey by remember { mutableStateOf(0) }
-
-    fun refreshCart() {
-        cartCount = CartDataSource.itemCount
-        cartTotal = CartDataSource.totalAmount
-        refreshKey++
-    }
 
     Column(
         modifier = Modifier
@@ -95,14 +92,14 @@ fun SupermarketMainScreen(
                 modifier = Modifier.weight(1f)
             )
             
-            if (cartCount > 0) {
+            if (cartState.itemCount > 0) {
                 Button(
                     onClick = onCartClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.height(36.dp)
                 ) {
-                    Text("🛒 购物车($cartCount)", fontSize = 13.sp)
+                    Text("🛒 购物车(${cartState.itemCount})", fontSize = 13.sp)
                 }
             }
         }
@@ -132,7 +129,7 @@ fun SupermarketMainScreen(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
-                            products = ProductDataSource.searchProducts(it)
+                            productViewModel.searchProducts(it)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color(0xFF263238))
@@ -140,7 +137,7 @@ fun SupermarketMainScreen(
                 }
                 Button(
                     onClick = {
-                        products = ProductDataSource.searchProducts(searchQuery)
+                        productViewModel.searchProducts(searchQuery)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
                     shape = RoundedCornerShape(22.dp),
@@ -188,7 +185,7 @@ fun SupermarketMainScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "商品列表 (${products.size})",
+                text = "商品列表 (${productState.products.size})",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF263238)
@@ -199,34 +196,17 @@ fun SupermarketMainScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(products, key = { "${it.id}_$refreshKey" }) { product ->
+                items(productState.products, key = { "${it.id}_$refreshKey" }) { product ->
                     ProductCard(
                         product = product,
-                        onAddToCart = {
-                            if (product.quantity <= 0) {
-                                Toast.makeText(context, "商品库存不足", Toast.LENGTH_SHORT).show()
-                            } else {
-                                val success = CartDataSource.addToCart(product, 1)
-                                if (success) {
-                                    refreshCart()
-                                } else {
-                                    Toast.makeText(context, "库存不足", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        },
-                        onRemoveFromCart = {
-                            val currentQty = CartDataSource.getQuantity(product.id)
-                            if (currentQty > 0) {
-                                CartDataSource.updateQuantity(product.id, currentQty - 1)
-                                refreshCart()
-                            }
-                        }
+                        cartViewModel = cartViewModel,
+                        onRefresh = { refreshKey++ }
                     )
                 }
             }
         }
 
-        if (cartCount > 0) {
+        if (cartState.itemCount > 0) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
@@ -241,7 +221,7 @@ fun SupermarketMainScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "已选 $cartCount 件商品",
+                            text = "已选 ${cartState.itemCount} 件商品",
                             fontSize = 14.sp,
                             color = Color(0xFF78909C)
                         )
@@ -252,7 +232,7 @@ fun SupermarketMainScreen(
                                 color = Color(0xFF263238)
                             )
                             Text(
-                                text = String.format("¥%.2f", cartTotal),
+                                text = String.format("¥%.2f", cartState.totalAmount),
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFE53935)
@@ -279,10 +259,11 @@ fun SupermarketMainScreen(
 @Composable
 fun ProductCard(
     product: Product,
-    onAddToCart: () -> Unit,
-    onRemoveFromCart: () -> Unit
+    cartViewModel: CartViewModel,
+    onRefresh: () -> Unit
 ) {
-    val cartQuantity = CartDataSource.getQuantity(product.id)
+    val context = LocalContext.current
+    val cartQuantity = cartViewModel.getQuantity(product.id)
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -353,7 +334,13 @@ fun ProductCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = onRemoveFromCart,
+                        onClick = {
+                            val newQty = cartQuantity - 1
+                            if (newQty >= 0) {
+                                cartViewModel.updateQuantity(product.id, newQty)
+                                onRefresh()
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE)),
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.size(32.dp),
@@ -371,7 +358,18 @@ fun ProductCard(
                     )
                     
                     Button(
-                        onClick = onAddToCart,
+                        onClick = {
+                            if (product.quantity <= 0) {
+                                Toast.makeText(context, "商品库存不足", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val success = cartViewModel.addToCart(product, 1)
+                                if (success) {
+                                    onRefresh()
+                                } else {
+                                    Toast.makeText(context, "库存不足", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (cartQuantity < product.quantity) Color(0xFF43A047) else Color(0xFFE0E0E0)
                         ),
@@ -385,7 +383,14 @@ fun ProductCard(
                 }
             } else {
                 Button(
-                    onClick = onAddToCart,
+                    onClick = {
+                        if (product.quantity <= 0) {
+                            Toast.makeText(context, "商品库存不足", Toast.LENGTH_SHORT).show()
+                        } else {
+                            cartViewModel.addToCart(product, 1)
+                            onRefresh()
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (product.quantity > 0) Color(0xFF43A047) else Color(0xFFB0BEC5)
                     ),

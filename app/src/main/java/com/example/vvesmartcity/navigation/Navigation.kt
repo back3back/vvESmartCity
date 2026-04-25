@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,10 +16,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vvesmartcity.R
+import com.example.vvesmartcity.auth.AuthViewModel
 import com.example.vvesmartcity.auth.LoginScreen
 import com.example.vvesmartcity.auth.SessionManager
-import com.example.vvesmartcity.auth.User
 import com.example.vvesmartcity.farm.AddEditRecordScreen
 import com.example.vvesmartcity.farm.AllFarmRecordsScreen
 import com.example.vvesmartcity.farm.FarmMainScreen
@@ -28,11 +30,14 @@ import com.example.vvesmartcity.profile.ProfileScreen
 import com.example.vvesmartcity.supermarket.AdminManageScreen
 import com.example.vvesmartcity.supermarket.CartDataSource
 import com.example.vvesmartcity.supermarket.CartScreen
+import com.example.vvesmartcity.supermarket.CartViewModel
 import com.example.vvesmartcity.supermarket.CustomerScanScreen
+import com.example.vvesmartcity.supermarket.ProductViewModel
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
 import com.example.vvesmartcity.warning.AddEditWarningScreen
 import com.example.vvesmartcity.warning.AllWarningsScreen
 import com.example.vvesmartcity.warning.WarningMainScreen
+import com.example.vvesmartcity.warning.WarningViewModel
 import com.example.vvesmartcity.weather.WeatherScreen
 
 sealed class Screen(val route: String, val title: String, val icon: Int, val activeIcon: Int) {
@@ -57,20 +62,17 @@ sealed class AppPage {
 }
 
 @Composable
-fun SmartCityApp() {
+fun SmartCityApp(
+    authViewModel: AuthViewModel = viewModel()
+) {
     val context = LocalContext.current
-    var isLoggedIn by remember { mutableStateOf(false) }
-    var currentUser by remember { mutableStateOf<User?>(null) }
+    val authState by authViewModel.state.collectAsState()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var currentPage by remember { mutableStateOf<AppPage>(AppPage.Home) }
     var pageHistory by remember { mutableStateOf(listOf<AppPage>(AppPage.Home)) }
 
     LaunchedEffect(Unit) {
-        val savedUser = SessionManager.getSavedUser(context)
-        if (savedUser != null) {
-            currentUser = savedUser
-            isLoggedIn = true
-        }
+        authViewModel.checkSavedSession(context)
     }
 
     fun navigateTo(page: AppPage) {
@@ -89,13 +91,12 @@ fun SmartCityApp() {
         goBack()
     }
 
-    if (!isLoggedIn) {
+    if (!authState.isLoggedIn) {
         LoginScreen(
             onLoginSuccess = { user ->
                 SessionManager.saveLogin(context, user)
                 CartDataSource.clearCart()
-                currentUser = user
-                isLoggedIn = true
+                authViewModel.checkSavedSession(context)
                 selectedTab = 0
                 currentPage = AppPage.Home
                 pageHistory = listOf(AppPage.Home)
@@ -110,7 +111,7 @@ fun SmartCityApp() {
         }
         is AppPage.SupermarketMain -> {
             SupermarketMainScreen(
-                userRole = currentUser?.role ?: "用户",
+                userRole = authState.currentUser?.role ?: "用户",
                 onBack = { goBack() },
                 onCartClick = { navigateTo(AppPage.Cart) },
                 onCustomerScan = { navigateTo(AppPage.CustomerScan) },
@@ -184,18 +185,16 @@ fun SmartCityApp() {
                     when (selectedTab) {
                         0 -> SmartCityHomeScreen(onModuleClick = { page -> navigateTo(page) })
                         1 -> ProfileScreen(
-                            user = currentUser,
+                            user = authState.currentUser,
                             onLogout = {
-                                SessionManager.clearSession(context)
+                                authViewModel.logout(context)
                                 CartDataSource.clearCart()
-                                currentUser = null
-                                isLoggedIn = false
                                 selectedTab = 0
                                 currentPage = AppPage.Home
                                 pageHistory = listOf(AppPage.Home)
                             },
                             onAvatarChange = { uri ->
-                                val oldAvatarUri = currentUser?.avatarUri
+                                val oldAvatarUri = authState.currentUser?.avatarUri
                                 val uriString = uri?.toString()
                                 
                                 if (oldAvatarUri != null && oldAvatarUri.startsWith("file://")) {
@@ -209,8 +208,7 @@ fun SmartCityApp() {
                                     }
                                 }
                                 
-                                SessionManager.saveAvatarUri(context, uriString)
-                                currentUser = currentUser?.copy(avatarUri = uriString)
+                                authViewModel.updateAvatar(context, uriString)
                             }
                         )
                     }
