@@ -132,7 +132,7 @@ fun CartScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(cartState.items, key = { "${it.product.id}" }) { item ->
+                items(cartState.items, key = { "${it.product.id}_${it.quantity}" }) { item ->
                     CartItemCard(
                         item = item,
                         onQuantityChange = { newQuantity ->

@@ -49,7 +49,8 @@ object CartDataSource {
         if (quantity > item.product.quantity) {
             return false
         }
-        item.quantity = quantity
+        val index = cartItems.indexOf(item)
+        cartItems[index] = item.copy(quantity = quantity)
         return true
     }
 

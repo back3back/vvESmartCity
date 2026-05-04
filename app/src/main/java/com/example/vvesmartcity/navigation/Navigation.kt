@@ -125,9 +125,13 @@ fun SmartCityApp(
             )
         }
         is AppPage.Cart -> {
+            val productViewModel: com.example.vvesmartcity.supermarket.ProductViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
             CartScreen(
                 onBack = { goBack() },
-                onCheckoutSuccess = { goBack() }
+                onCheckoutSuccess = {
+                    productViewModel.refreshProducts()
+                    goBack()
+                }
             )
         }
         is AppPage.CustomerScan -> {
