@@ -205,6 +205,7 @@ fun CartScreen(
                             onClick = {
                                 viewModel.checkout()
                                 showSuccess = true
+                                onCheckoutSuccess()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
                             shape = RoundedCornerShape(12.dp),
