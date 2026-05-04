@@ -1,6 +1,5 @@
 package com.example.vvesmartcity.navigation
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -221,21 +220,7 @@ fun SmartCityApp(
                                 pageHistory = listOf(AppPage.Home)
                             },
                             onAvatarChange = { uri ->
-                                val oldAvatarUri = authState.currentUser?.avatarUri
-                                val uriString = uri?.toString()
-                                
-                                if (oldAvatarUri != null && oldAvatarUri.startsWith("file://")) {
-                                    try {
-                                        val oldFile = java.io.File(Uri.parse(oldAvatarUri).path ?: "")
-                                        if (oldFile.exists()) {
-                                            oldFile.delete()
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                                
-                                authViewModel.updateAvatar(context, uriString)
+                                authViewModel.updateAvatar(context, uri?.toString())
                             }
                         )
                     }

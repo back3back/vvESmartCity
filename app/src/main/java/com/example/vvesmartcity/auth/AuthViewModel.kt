@@ -1,6 +1,7 @@
 package com.example.vvesmartcity.auth
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +71,17 @@ class AuthViewModel : ViewModel() {
 
     fun updateAvatar(context: Context, uri: String?) {
         viewModelScope.launch {
+            val oldAvatarUri = _state.value.currentUser?.avatarUri
+            if (oldAvatarUri != null && oldAvatarUri.startsWith("file://")) {
+                try {
+                    val oldFile = java.io.File(Uri.parse(oldAvatarUri).path ?: "")
+                    if (oldFile.exists()) {
+                        oldFile.delete()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
             SessionManager.saveAvatarUri(context, uri)
             _state.update { it.copy(
                 currentUser = it.currentUser?.copy(avatarUri = uri)

@@ -107,7 +107,7 @@ fun ProfileHeader(user: User?, onAvatarChange: (Uri?) -> Unit) {
     ) { uri: Uri? ->
         uri?.let { sourceUri ->
             val destinationUri = Uri.fromFile(
-                java.io.File(context.cacheDir, "cropped_avatar_${System.currentTimeMillis()}.jpg")
+                java.io.File(context.filesDir, "avatar.jpg")
             )
             val options = UCrop.Options().apply {
                 setCircleDimmedLayer(true)
