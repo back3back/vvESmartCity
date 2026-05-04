@@ -1,5 +1,12 @@
 package com.example.vvesmartcity.warning
 
+import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vvesmartcity.data.FileService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,6 +66,18 @@ fun WarningMainScreen(
     onViewAll: () -> Unit,
     viewModel: WarningViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val bitmap = createMockBitmap()
+            FileService.saveScreenshot(context, bitmap)
+        } else {
+            Toast.makeText(context, "需要存储权限才能保存截图", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -183,6 +204,21 @@ fun WarningMainScreen(
                     .height(48.dp)
             ) {
                 Text("过往预警信息", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    permissionLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E88E5)),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text("截图保存", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -714,4 +750,20 @@ fun AddEditWarningScreen(
             }
         }
     }
+}
+
+fun createMockBitmap(): Bitmap {
+    val bitmap = Bitmap.createBitmap(800, 600, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val paint = Paint().apply {
+        color = android.graphics.Color.parseColor("#F5F7FA")
+    }
+    canvas.drawRect(0f, 0f, 800f, 600f, paint)
+    paint.color = android.graphics.Color.parseColor("#E53935")
+    paint.textSize = 48f
+    canvas.drawText("预警截图", 280f, 320f, paint)
+    paint.color = android.graphics.Color.parseColor("#78909C")
+    paint.textSize = 32f
+    canvas.drawText(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()), 200f, 380f, paint)
+    return bitmap
 }

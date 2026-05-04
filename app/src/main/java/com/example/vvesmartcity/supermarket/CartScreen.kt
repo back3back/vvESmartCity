@@ -47,6 +47,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vvesmartcity.data.ShoppingEntity
 
 @Composable
 fun CartScreen(
@@ -227,7 +228,7 @@ fun CartItemCard(
     onRemove: () -> Unit
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
-    var editQuantity by remember { mutableStateOf(item.quantity.toString()) }
+    var editQuantity by remember(item.quantity) { mutableStateOf(item.quantity.toString()) }
 
     if (showEditDialog) {
         AlertDialog(
@@ -475,6 +476,356 @@ fun CheckoutSuccessScreen(onBack: () -> Unit) {
                 .height(48.dp)
         ) {
             Text("返回商城", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+fun OrderManagementScreen(
+    onBack: () -> Unit,
+    viewModel: CartViewModel = viewModel()
+) {
+    val cartState by viewModel.state.collectAsState()
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf<ShoppingEntity?>(null) }
+
+    var inputProductId by remember { mutableStateOf("") }
+    var inputProductName by remember { mutableStateOf("") }
+    var inputUnitPrice by remember { mutableStateOf("") }
+    var inputQuantity by remember { mutableStateOf("") }
+    var inputDiscountedPrice by remember { mutableStateOf("") }
+
+    fun resetInputs() {
+        inputProductId = ""
+        inputProductName = ""
+        inputUnitPrice = ""
+        inputQuantity = ""
+        inputDiscountedPrice = ""
+    }
+
+    fun showDialogForEdit(item: ShoppingEntity) {
+        inputProductId = item.productId
+        inputProductName = item.productName
+        inputUnitPrice = item.unitPrice.toString()
+        inputQuantity = item.quantity.toString()
+        inputDiscountedPrice = item.discountedPrice.toString()
+        showEditDialog = item
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F7FA))
+            .statusBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
+                    contentDescription = "返回",
+                    tint = Color(0xFF2E7D32)
+                )
+            }
+            Text(
+                text = "订单管理",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF2E7D32),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    resetInputs()
+                    showAddDialog = true
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF43A047)),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+            ) {
+                Text("新增订单", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Text(
+            text = "共 ${cartState.dbOrders.size} 条记录",
+            fontSize = 14.sp,
+            color = Color(0xFF78909C),
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(cartState.dbOrders, key = { it.id }) { item ->
+                OrderItemCard(
+                    item = item,
+                    onEdit = { showDialogForEdit(item) },
+                    onDelete = { viewModel.deleteOrder(item) }
+                )
+            }
+        }
+    }
+
+    if (showAddDialog) {
+        OrderInputDialog(
+            title = "新增订单",
+            productId = inputProductId,
+            productName = inputProductName,
+            unitPrice = inputUnitPrice,
+            quantity = inputQuantity,
+            discountedPrice = inputDiscountedPrice,
+            onProductIdChange = { inputProductId = it },
+            onProductNameChange = { inputProductName = it },
+            onUnitPriceChange = { inputUnitPrice = it },
+            onQuantityChange = { inputQuantity = it },
+            onDiscountedPriceChange = { inputDiscountedPrice = it },
+            onDismiss = { showAddDialog = false },
+            onConfirm = {
+                val entity = ShoppingEntity(
+                    productId = inputProductId,
+                    productName = inputProductName,
+                    unitPrice = inputUnitPrice.toFloatOrNull() ?: 0f,
+                    quantity = inputQuantity.toIntOrNull() ?: 0,
+                    discountedPrice = inputDiscountedPrice.toFloatOrNull() ?: 0f
+                )
+                viewModel.insertOrder(entity)
+                showAddDialog = false
+            }
+        )
+    }
+
+    showEditDialog?.let { editingItem ->
+        OrderInputDialog(
+            title = "编辑订单",
+            productId = inputProductId,
+            productName = inputProductName,
+            unitPrice = inputUnitPrice,
+            quantity = inputQuantity,
+            discountedPrice = inputDiscountedPrice,
+            onProductIdChange = { inputProductId = it },
+            onProductNameChange = { inputProductName = it },
+            onUnitPriceChange = { inputUnitPrice = it },
+            onQuantityChange = { inputQuantity = it },
+            onDiscountedPriceChange = { inputDiscountedPrice = it },
+            onDismiss = { showEditDialog = null },
+            onConfirm = {
+                val updatedEntity = ShoppingEntity(
+                    id = editingItem.id,
+                    productId = inputProductId,
+                    productName = inputProductName,
+                    unitPrice = inputUnitPrice.toFloatOrNull() ?: 0f,
+                    quantity = inputQuantity.toIntOrNull() ?: 0,
+                    discountedPrice = inputDiscountedPrice.toFloatOrNull() ?: 0f
+                )
+                viewModel.updateOrder(updatedEntity)
+                showEditDialog = null
+            }
+        )
+    }
+}
+
+@Composable
+fun OrderInputDialog(
+    title: String,
+    productId: String,
+    productName: String,
+    unitPrice: String,
+    quantity: String,
+    discountedPrice: String,
+    onProductIdChange: (String) -> Unit,
+    onProductNameChange: (String) -> Unit,
+    onUnitPriceChange: (String) -> Unit,
+    onQuantityChange: (String) -> Unit,
+    onDiscountedPriceChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = productId,
+                    onValueChange = onProductIdChange,
+                    label = { Text("商品ID") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = productName,
+                    onValueChange = onProductNameChange,
+                    label = { Text("商品名称") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = unitPrice,
+                    onValueChange = onUnitPriceChange,
+                    label = { Text("单价") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = quantity,
+                    onValueChange = onQuantityChange,
+                    label = { Text("数量") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = discountedPrice,
+                    onValueChange = onDiscountedPriceChange,
+                    label = { Text("折扣后价格") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Number
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("确定", color = Color(0xFF43A047))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消", color = Color(0xFF78909C))
+            }
+        }
+    )
+}
+
+@Composable
+fun OrderItemCard(
+    item: ShoppingEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color(0xFFE8F5E9), Color(0xFFC8E6C9))
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "ID:${item.id}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.productName,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF263238)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "商品ID: ${item.productId}",
+                    fontSize = 11.sp,
+                    color = Color(0xFF78909C)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row {
+                    Text(
+                        text = "单价: ¥${item.unitPrice}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF546E7A)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "数量: ${item.quantity}",
+                        fontSize = 12.sp,
+                        color = Color(0xFF546E7A)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "折扣价: ¥${item.discountedPrice}",
+                        fontSize = 12.sp,
+                        color = Color(0xFFE53935),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(android.R.drawable.ic_menu_edit),
+                        contentDescription = "编辑",
+                        tint = Color(0xFF2196F3),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(android.R.drawable.ic_menu_delete),
+                        contentDescription = "删除",
+                        tint = Color(0xFFE53935),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }

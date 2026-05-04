@@ -72,7 +72,7 @@ fun SmartCityHomeScreen(onModuleClick: (AppPage) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 24.dp)
-                .padding(top = 32.dp, bottom = 16.dp)
+                .padding(top = 32.dp, bottom = 48.dp)
         ) {
             HeaderSection()
             Spacer(modifier = Modifier.height(24.dp))
@@ -166,6 +166,30 @@ fun ModuleGrid(onModuleClick: (AppPage) -> Unit) {
             iconColor = Color(0xFFFF9800),
             gradient = listOf(Color(0xFFFF9800), Color(0xFFFFA726)),
             pageType = AppPage.FarmMain
+        ),
+        ModuleItem(
+            title = "智慧农业设置",
+            subtitle = "Farm Settings",
+            icon = android.R.drawable.ic_menu_preferences,
+            iconColor = Color(0xFF7B1FA2),
+            gradient = listOf(Color(0xFF7B1FA2), Color(0xFF9C27B0)),
+            pageType = AppPage.FarmSettings
+        ),
+        ModuleItem(
+            title = "商超数据库",
+            subtitle = "Shopping DB",
+            icon = android.R.drawable.ic_menu_save,
+            iconColor = Color(0xFF00897B),
+            gradient = listOf(Color(0xFF00897B), Color(0xFF26A69A)),
+            pageType = AppPage.ShoppingDatabase
+        ),
+        ModuleItem(
+            title = "摄像头截图",
+            subtitle = "Camera Capture",
+            icon = android.R.drawable.ic_menu_camera,
+            iconColor = Color(0xFF1565C0),
+            gradient = listOf(Color(0xFF1565C0), Color(0xFF1E88E5)),
+            pageType = AppPage.CameraCapture
         )
     )
 
@@ -173,8 +197,8 @@ fun ModuleGrid(onModuleClick: (AppPage) -> Unit) {
         columns = GridCells.Fixed(2),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(2.dp),
-        userScrollEnabled = false
+        contentPadding = PaddingValues(2.dp, bottom = 32.dp),
+        userScrollEnabled = true
     ) {
         items(modules) { module ->
             ModuleCard(module) {

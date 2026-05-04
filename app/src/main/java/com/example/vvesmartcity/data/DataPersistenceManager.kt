@@ -7,16 +7,32 @@ import org.json.JSONObject
 
 object DataPersistenceManager {
     private const val PREFS_NAME = "smart_city_data"
+    private const val FARM_PREFS_NAME = "zhcs"
     
     private const val KEY_DEVICES = "devices"
     private const val KEY_PRODUCTS = "products"
     private const val KEY_WARNINGS = "warnings"
     private const val KEY_INITIALIZED = "data_initialized"
     
+    private const val KEY_TEMP_MIN = "temp_min"
+    private const val KEY_TEMP_MAX = "temp_max"
+    private const val KEY_HUMIDITY_MIN = "humidity_min"
+    private const val KEY_HUMIDITY_MAX = "humidity_max"
+    private const val KEY_LIGHT_INTENSITY = "light_intensity"
+    private const val KEY_CO_THRESHOLD = "co_threshold"
+    
     private lateinit var prefs: SharedPreferences
+    private lateinit var farmPrefs: SharedPreferences
+    private lateinit var database: ShoppingDatabase
     
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        farmPrefs = context.getSharedPreferences(FARM_PREFS_NAME, Context.MODE_PRIVATE)
+        database = ShoppingDatabase.getInstance(context)
+    }
+    
+    fun getShoppingDao(): ShoppingDao {
+        return database.shoppingDao()
     }
     
     fun isInitialized(): Boolean {
@@ -142,6 +158,44 @@ object DataPersistenceManager {
     fun clearAll() {
         prefs.edit().clear().apply()
     }
+
+    fun saveFarmSettings(
+        tempMin: Float,
+        tempMax: Float,
+        humidityMin: Float,
+        humidityMax: Float,
+        lightIntensity: Float,
+        coThreshold: Float
+    ) {
+        farmPrefs.edit().apply {
+            putFloat(KEY_TEMP_MIN, tempMin)
+            putFloat(KEY_TEMP_MAX, tempMax)
+            putFloat(KEY_HUMIDITY_MIN, humidityMin)
+            putFloat(KEY_HUMIDITY_MAX, humidityMax)
+            putFloat(KEY_LIGHT_INTENSITY, lightIntensity)
+            putFloat(KEY_CO_THRESHOLD, coThreshold)
+            apply()
+        }
+    }
+
+    fun readFarmSettings(): FarmSettings? {
+        return if (farmPrefs.contains(KEY_TEMP_MIN)) {
+            FarmSettings(
+                tempMin = farmPrefs.getFloat(KEY_TEMP_MIN, 0f),
+                tempMax = farmPrefs.getFloat(KEY_TEMP_MAX, 0f),
+                humidityMin = farmPrefs.getFloat(KEY_HUMIDITY_MIN, 0f),
+                humidityMax = farmPrefs.getFloat(KEY_HUMIDITY_MAX, 0f),
+                lightIntensity = farmPrefs.getFloat(KEY_LIGHT_INTENSITY, 0f),
+                coThreshold = farmPrefs.getFloat(KEY_CO_THRESHOLD, 0f)
+            )
+        } else {
+            null
+        }
+    }
+
+    fun clearFarmSettings() {
+        farmPrefs.edit().clear().apply()
+    }
 }
 
 data class DeviceData(
@@ -168,4 +222,13 @@ data class WarningData(
     val description: String,
     val timestamp: Long,
     val isHandled: Boolean
+)
+
+data class FarmSettings(
+    val tempMin: Float,
+    val tempMax: Float,
+    val humidityMin: Float,
+    val humidityMax: Float,
+    val lightIntensity: Float,
+    val coThreshold: Float
 )

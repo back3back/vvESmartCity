@@ -24,6 +24,7 @@ import com.example.vvesmartcity.auth.SessionManager
 import com.example.vvesmartcity.farm.AddEditRecordScreen
 import com.example.vvesmartcity.farm.AllFarmRecordsScreen
 import com.example.vvesmartcity.farm.FarmMainScreen
+import com.example.vvesmartcity.farm.FarmSettingsScreen
 import com.example.vvesmartcity.home.BottomNavigationBar
 import com.example.vvesmartcity.home.SmartCityHomeScreen
 import com.example.vvesmartcity.profile.ProfileScreen
@@ -32,6 +33,7 @@ import com.example.vvesmartcity.supermarket.CartDataSource
 import com.example.vvesmartcity.supermarket.CartScreen
 import com.example.vvesmartcity.supermarket.CartViewModel
 import com.example.vvesmartcity.supermarket.CustomerScanScreen
+import com.example.vvesmartcity.supermarket.OrderManagementScreen
 import com.example.vvesmartcity.supermarket.ProductViewModel
 import com.example.vvesmartcity.supermarket.SupermarketMainScreen
 import com.example.vvesmartcity.warning.AddEditWarningScreen
@@ -39,6 +41,7 @@ import com.example.vvesmartcity.warning.AllWarningsScreen
 import com.example.vvesmartcity.warning.WarningMainScreen
 import com.example.vvesmartcity.warning.WarningViewModel
 import com.example.vvesmartcity.weather.WeatherScreen
+import com.example.vvesmartcity.camera.CameraCaptureScreen
 
 sealed class Screen(val route: String, val title: String, val icon: Int, val activeIcon: Int) {
     object Home : Screen("home", "主页", R.drawable.ic_home, R.drawable.ic_home)
@@ -53,12 +56,16 @@ sealed class AppPage {
     object Cart : AppPage()
     object CustomerScan : AppPage()
     object AdminManage : AppPage()
+    object OrderManagement : AppPage()
     object WarningMain : AppPage()
     object AllWarnings : AppPage()
     data class AddEditWarning(val warningId: String?) : AppPage()
     object FarmMain : AppPage()
     object AllFarmRecords : AppPage()
     data class AddEditRecord(val recordId: String?) : AppPage()
+    object FarmSettings : AppPage()
+    object ShoppingDatabase : AppPage()
+    object CameraCapture : AppPage()
 }
 
 @Composable
@@ -135,6 +142,11 @@ fun SmartCityApp(
                 onBack = { goBack() }
             )
         }
+        is AppPage.OrderManagement -> {
+            OrderManagementScreen(
+                onBack = { goBack() }
+            )
+        }
         is AppPage.WarningMain -> {
             WarningMainScreen(
                 onBack = { goBack() },
@@ -175,6 +187,21 @@ fun SmartCityApp(
                 recordId = recordPage.recordId,
                 onBack = { goBack() },
                 onSaveSuccess = { goBack() }
+            )
+        }
+        is AppPage.FarmSettings -> {
+            FarmSettingsScreen(
+                onBack = { goBack() }
+            )
+        }
+        is AppPage.ShoppingDatabase -> {
+            OrderManagementScreen(
+                onBack = { goBack() }
+            )
+        }
+        is AppPage.CameraCapture -> {
+            CameraCaptureScreen(
+                onBack = { goBack() }
             )
         }
         else -> {

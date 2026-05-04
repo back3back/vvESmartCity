@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -750,103 +751,331 @@ fun AddEditRecordScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(SensorType.values().toList()) { type ->
-                        val isSelected = selectedType == type
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (isSelected) Color(0xFFFF9800) else Color(0xFFF5F5F5)
+                            val isSelected = selectedType == type
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isSelected) Color(0xFFFF9800) else Color(0xFFF5F5F5)
+                                    )
+                                    .clickable { selectedType = type }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    text = "${type.icon} ${type.label}",
+                                    fontSize = 12.sp,
+                                    color = if (isSelected) Color.White else Color(0xFF263238),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                                 )
-                                .clickable { selectedType = type }
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = "${type.icon} ${type.label}",
-                                fontSize = 12.sp,
-                                color = if (isSelected) Color.White else Color(0xFF263238),
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = location,
-                    onValueChange = { location = it },
-                    label = { Text("位置") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    OutlinedTextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        label = { Text("位置") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it },
-                    label = { Text("数值 (${selectedType.unit})") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = { value = it },
+                        label = { Text("数值 (${selectedType.unit})") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = thresholdMin,
-                    onValueChange = { thresholdMin = it },
-                    label = { Text("阈值最小值 (${selectedType.unit})") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    OutlinedTextField(
+                        value = thresholdMin,
+                        onValueChange = { thresholdMin = it },
+                        label = { Text("阈值最小值 (${selectedType.unit})") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = thresholdMax,
-                    onValueChange = { thresholdMax = it },
-                    label = { Text("阈值最大值 (${selectedType.unit})") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    OutlinedTextField(
+                        value = thresholdMax,
+                        onValueChange = { thresholdMax = it },
+                        label = { Text("阈值最大值 (${selectedType.unit})") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
-                    onClick = {
-                        val v = value.toDoubleOrNull() ?: 0.0
-                        val min = thresholdMin.toDoubleOrNull() ?: 0.0
-                        val max = thresholdMax.toDoubleOrNull() ?: 100.0
-                        if (editingRecord != null) {
-                            viewModel.updateRecord(
-                                editingRecord.copy(
-                                    type = selectedType,
-                                    value = v,
-                                    thresholdMin = min,
-                                    thresholdMax = max,
-                                    location = location
+                    Button(
+                        onClick = {
+                            val v = value.toDoubleOrNull() ?: 0.0
+                            val min = thresholdMin.toDoubleOrNull() ?: 0.0
+                            val max = thresholdMax.toDoubleOrNull() ?: 100.0
+                            if (editingRecord != null) {
+                                viewModel.updateRecord(
+                                    editingRecord.copy(
+                                        type = selectedType,
+                                        value = v,
+                                        thresholdMin = min,
+                                        thresholdMax = max,
+                                        location = location
+                                    )
                                 )
-                            )
-                        } else {
-                            viewModel.addRecord(
-                                SensorRecord(
-                                    id = "S${System.currentTimeMillis()}",
-                                    type = selectedType,
-                                    value = v,
-                                    thresholdMin = min,
-                                    thresholdMax = max,
-                                    timestamp = System.currentTimeMillis(),
-                                    location = location
+                            } else {
+                                viewModel.addRecord(
+                                    SensorRecord(
+                                        id = "S${System.currentTimeMillis()}",
+                                        type = selectedType,
+                                        value = v,
+                                        thresholdMin = min,
+                                        thresholdMax = max,
+                                        timestamp = System.currentTimeMillis(),
+                                        location = location
+                                    )
                                 )
-                            )
-                        }
-                        onSaveSuccess()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text("保存", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                            onSaveSuccess()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text("保存", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
     }
-}}
+}
+
+@Composable
+fun FarmSettingsScreen(
+    onBack: () -> Unit,
+    viewModel: FarmViewModel = viewModel()
+) {
+        val farmState by viewModel.state.collectAsState()
+
+        var tempMin by remember { mutableStateOf("") }
+        var tempMax by remember { mutableStateOf("") }
+        var humidityMin by remember { mutableStateOf("") }
+        var humidityMax by remember { mutableStateOf("") }
+        var lightIntensity by remember { mutableStateOf("") }
+        var coThreshold by remember { mutableStateOf("") }
+
+        LaunchedEffect(farmState.farmSettings) {
+            farmState.farmSettings?.let { settings ->
+                tempMin = settings.tempMin.toString()
+                tempMax = settings.tempMax.toString()
+                humidityMin = settings.humidityMin.toString()
+                humidityMax = settings.humidityMax.toString()
+                lightIntensity = settings.lightIntensity.toString()
+                coThreshold = settings.coThreshold.toString()
+            }
+        }
+
+        LaunchedEffect(farmState.settingsMessage) {
+            if (farmState.settingsMessage.isNotEmpty()) {
+                kotlinx.coroutines.delay(2000)
+                viewModel.clearSettingsMessage()
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xFFFFF3E0), Color(0xFFF5F7FA), Color(0xFFFFFFFF))
+                    )
+                )
+                .statusBarsPadding()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = androidx.compose.ui.res.painterResource(android.R.drawable.ic_menu_close_clear_cancel),
+                        contentDescription = "返回",
+                        tint = Color(0xFFFF9800)
+                    )
+                }
+                Text(
+                    text = "农业环境参数设置",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFF9800),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            OutlinedTextField(
+                value = tempMin,
+                onValueChange = { tempMin = it },
+                label = { Text("温度范围最小值 (°C)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = tempMax,
+                onValueChange = { tempMax = it },
+                label = { Text("温度范围最大值 (°C)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = humidityMin,
+                onValueChange = { humidityMin = it },
+                label = { Text("湿度范围最小值 (%)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = humidityMax,
+                onValueChange = { humidityMax = it },
+                label = { Text("湿度范围最大值 (%)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = lightIntensity,
+                onValueChange = { lightIntensity = it },
+                label = { Text("光照强度 (lux)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = coThreshold,
+                onValueChange = { coThreshold = it },
+                label = { Text("CO临界值 (ppm)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        viewModel.saveFarmSettings(
+                            tempMin = tempMin.toFloatOrNull() ?: 0f,
+                            tempMax = tempMax.toFloatOrNull() ?: 0f,
+                            humidityMin = humidityMin.toFloatOrNull() ?: 0f,
+                            humidityMax = humidityMax.toFloatOrNull() ?: 0f,
+                            lightIntensity = lightIntensity.toFloatOrNull() ?: 0f,
+                            coThreshold = coThreshold.toFloatOrNull() ?: 0f
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text("保存", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = { viewModel.readFarmSettings() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text("读取", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = { viewModel.clearFarmSettings() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text("清空", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            if (farmState.settingsMessage.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = farmState.settingsMessage,
+                    fontSize = 14.sp,
+                    color = Color(0xFF4CAF50),
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            farmState.farmSettings?.let { settings ->
+                Spacer(modifier = Modifier.height(24.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "已保存的参数",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF263238)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "温度范围: ${settings.tempMin} ~ ${settings.tempMax} °C",
+                            fontSize = 14.sp,
+                            color = Color(0xFF546E7A)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "湿度范围: ${settings.humidityMin} ~ ${settings.humidityMax} %",
+                            fontSize = 14.sp,
+                            color = Color(0xFF546E7A)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "光照强度: ${settings.lightIntensity} lux",
+                            fontSize = 14.sp,
+                            color = Color(0xFF546E7A)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "CO临界值: ${settings.coThreshold} ppm",
+                            fontSize = 14.sp,
+                            color = Color(0xFF546E7A)
+                        )
+                    }
+                }
+            }
+        }
+    }
